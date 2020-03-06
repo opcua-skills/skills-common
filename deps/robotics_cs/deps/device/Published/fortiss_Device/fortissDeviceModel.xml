@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<ModelDesign
+    xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:OpcUa="http://opcfoundation.org/UA/"
+    xmlns:DI="http://opcfoundation.org/UA/DI/"
+    xmlns:DEVICE="https://fortiss.org/UA/Device/"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    TargetNamespace="https://fortiss.org/UA/Device/"
+    TargetXmlNamespace="https://fortiss.org/UA/Device/"
+    TargetVersion="0.9.1"
+    TargetPublicationDate="2018-03-23T00:00:00Z"
+    xmlns="http://opcfoundation.org/UA/ModelDesign.xsd">
+
+  <Namespaces>
+    <Namespace Name="OpcUa" Version="1.03" PublicationDate="2013-12-02T00:00:00Z" Prefix="Opc.Ua" InternalPrefix="Opc.Ua.Server" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd" XmlPrefix="OpcUa">http://opcfoundation.org/UA/</Namespace>
+    <Namespace Name="OpcUaDi" Prefix="Opc.Ua.Di" XmlNamespace="http://opcfoundation.org/UA/DI/Types.xsd" XmlPrefix="DI" FilePath="OpcUaDiModel">http://opcfoundation.org/UA/DI/</Namespace>
+    <Namespace Name="fortissDevice" Prefix="fortiss_Device" XmlNamespace="https://fortiss.org/UA/Device/Types.xsd" XmlPrefix="fortiss_Device">https://fortiss.org/UA/Device/</Namespace>
+  </Namespaces>
+
+
+  <Object SymbolicName="DEVICE:FortissDeviceNamespaceMetadata" TypeDefinition="OpcUa:NamespaceMetadataType">
+    <BrowseName>https://fortiss.org/UA/Device/</BrowseName>
+    <Children>
+      <Property SymbolicName="OpcUa:NamespaceUri" DataType="OpcUa:String">
+        <DefaultValue>
+          <uax:String>https://fortiss.org/UA/Device/</uax:String>
+        </DefaultValue>
+      </Property>
+      <Property SymbolicName="OpcUa:NamespaceVersion" DataType="OpcUa:String">
+        <DefaultValue>
+          <uax:String>1.00</uax:String>
+        </DefaultValue>
+      </Property>
+      <Property SymbolicName="OpcUa:NamespacePublicationDate" DataType="OpcUa:DateTime">
+        <DefaultValue>
+          <uax:DateTime>2019-01-01</uax:DateTime>
+        </DefaultValue>
+      </Property>
+      <Property SymbolicName="OpcUa:IsNamespaceSubset" DataType="OpcUa:Boolean">
+        <DefaultValue>
+          <uax:Boolean>false</uax:Boolean>
+        </DefaultValue>
+      </Property>
+      <Property SymbolicName="OpcUa:StaticNodeIdTypes" DataType="OpcUa:IdType" ValueRank="Array">
+        <DefaultValue>
+          <uax:ListOfInt32>
+            <uax:Int32>0</uax:Int32>
+          </uax:ListOfInt32>
+        </DefaultValue>
+      </Property>
+      <Property SymbolicName="OpcUa:StaticNumericNodeIdRange" DataType="OpcUa:NumericRange" ValueRank="Array">
+        <DefaultValue>
+          <uax:ListOfString>
+            <uax:String>1:65535</uax:String>
+          </uax:ListOfString>
+        </DefaultValue>
+      </Property>
+      <Property SymbolicName="OpcUa:StaticStringNodeIdPattern" DataType="OpcUa:String">
+        <DefaultValue>
+          <uax:String></uax:String>
+        </DefaultValue>
+      </Property>
+      <Property SymbolicName="OpcUa:DefaultRolePermissions" ModellingRule="Mandatory" />
+      <Property SymbolicName="OpcUa:DefaultUserRolePermissions" ModellingRule="Mandatory" />
+      <Property SymbolicName="OpcUa:DefaultAccessRestrictions" ModellingRule="Mandatory" />
+    </Children>
+    <References>
+      <Reference IsInverse="true">
+        <ReferenceType>OpcUa:HasComponent</ReferenceType>
+        <TargetId>OpcUa:Server_Namespaces</TargetId>
+      </Reference>
+    </References>
+  </Object>
+
+  <!-- ### Object Types ###-->
+
+  <ObjectType SymbolicName="DEVICE:SkillType" BaseType="OpcUa:ProgramStateMachineType" IsAbstract="true">
+    <Description>A skill type</Description>
+    <Children>
+      <Property SymbolicName="DEVICE:Name" DataType="OpcUa:String" ValueRank="Scalar" ModellingRule="None">
+        <Description>Name of the skill</Description>
+      </Property>
+      <Property SymbolicName="OpcUa:MaxInstanceCount" DataType="OpcUa:UInt32" ValueRank="Scalar" ModellingRule="Mandatory" />
+      <Object SymbolicName="OpcUa:FinalResultData" TypeDefinition="OpcUa:BaseObjectType" ModellingRule="Optional" />
+      <Method SymbolicName="OpcUa:Halt" ModellingRule="Mandatory" />
+      <Method SymbolicName="OpcUa:Reset" ModellingRule="Mandatory" />
+      <Method SymbolicName="OpcUa:Resume" ModellingRule="Mandatory" />
+      <Method SymbolicName="OpcUa:Suspend" ModellingRule="Mandatory" />
+      <Method SymbolicName="OpcUa:Start" ModellingRule="Mandatory" />
+    </Children>
+  </ObjectType>
+
+  <ObjectType SymbolicName="DEVICE:GripperSkillType" BaseType="DEVICE:SkillType" IsAbstract="true">
+    <Description>A gripper skill type</Description>
+  </ObjectType>
+
+  <ObjectType SymbolicName="DEVICE:GraspGripperSkillType" BaseType="DEVICE:GripperSkillType" IsAbstract="false">
+    <BrowseName>GraspGripperSkill</BrowseName>
+    <Description>Close the gripper to its minimum width</Description>
+    <Children>
+      <Object SymbolicName="DI:ParameterSet" ModellingRule="Optional">
+        <Children>
+          <Variable SymbolicName="DEVICE:Force" TypeDefinition="OpcUa:AnalogItemType" DataType="OpcUa:Double" ModellingRule="Optional" ValueRank="Scalar" AccessLevel="ReadWrite">
+            <Description>The gripper force</Description>
+          </Variable>
+        </Children>
+      </Object>
+    </Children>
+  </ObjectType>
+
+  <ObjectType SymbolicName="DEVICE:ReleaseGripperSkillType" BaseType="DEVICE:GripperSkillType" IsAbstract="false">
+    <BrowseName>ReleaseGripperSkill</BrowseName>
+    <Description>Open the gripper to its maximum width</Description>
+    <Children>
+      <Object SymbolicName="DI:ParameterSet" ModellingRule="Optional">
+        <Children>
+          <Variable SymbolicName="DEVICE:Force" TypeDefinition="OpcUa:AnalogItemType" DataType="OpcUa:Double" ModellingRule="Optional" ValueRank="Scalar" AccessLevel="ReadWrite">
+            <Description>The gripper force</Description>
+          </Variable>
+        </Children>
+      </Object>
+    </Children>
+  </ObjectType>
+
+  <ObjectType SymbolicName="DEVICE:MoveGripperSkillType" BaseType="DEVICE:GripperSkillType" IsAbstract="false">
+    <BrowseName>MoveGripperSkill</BrowseName>
+    <Description>Open/Close the gripper to a specific width</Description>
+    <Children>
+      <Object SymbolicName="DI:ParameterSet" ModellingRule="Mandatory">
+        <Children>
+          <Variable SymbolicName="DEVICE:Width" TypeDefinition="OpcUa:AnalogItemType" DataType="OpcUa:Double" ModellingRule="Mandatory" ValueRank="Scalar" AccessLevel="ReadWrite">
+            <Description>The gripper width</Description>
+          </Variable>
+          <Variable SymbolicName="DEVICE:Force" TypeDefinition="OpcUa:AnalogItemType" DataType="OpcUa:Double" ModellingRule="Optional" ValueRank="Scalar" AccessLevel="ReadWrite">
+            <Description>The gripper force</Description>
+          </Variable>
+        </Children>
+      </Object>
+    </Children>
+  </ObjectType>
+
+  <ObjectType SymbolicName="DEVICE:ISkillControllerType" BaseType="OpcUa:BaseInterfaceType" IsAbstract="true" SupportsEvents="true">
+    <Description>The interface definition for a skill controller type. Represents an object which contains skill instances. </Description>
+    <Children>
+      <Property SymbolicName="DEVICE:Name" DataType="OpcUa:LocalizedText" ValueRank="Scalar" ModellingRule="Optional" />
+      <Object SymbolicName="DEVICE:Skills" TypeDefinition="OpcUa:BaseObjectType" ModellingRule="Mandatory">
+        <Description>Contains the skills of the Component</Description>
+        <Children>
+          <Object SymbolicName="DEVICE:Skill__No_" TypeDefinition="DEVICE:SkillType" ModellingRule="OptionalPlaceholder">
+            <BrowseName>Skill_&lt;No&gt;</BrowseName>
+          </Object>
+        </Children>
+      </Object>
+    </Children>
+  </ObjectType>
+
+  <ObjectType SymbolicName="DEVICE:IPowerOffDeviceType" BaseType="OpcUa:BaseInterfaceType" IsAbstract="true" SupportsEvents="true">
+    <Description>The interface definition for a device which can be shut-down by the client. </Description>
+    <Children>
+      <Method SymbolicName="DEVICE:PowerOffDevice" TypeDefinition="DEVICE:PowerOffDeviceMethodType"/>
+    </Children>
+  </ObjectType>
+
+  <Method SymbolicName="DEVICE:PowerOffDeviceMethodType">
+    <InputArguments>
+      <Argument Name="DelayMs" DataType="OpcUa:UInt32"/>
+    </InputArguments>
+  </Method>
+
+
+  <DataType SymbolicName="DEVICE:GripTypeEnumeration" BaseType="OpcUa:Enumeration">
+    <Fields>
+      <Field Name="PARALLEL" Identifier="0">
+        <Description>Parallel gripping</Description>
+      </Field>
+      <Field Name="VACUUM" Identifier="1">
+        <Description>Vacuum gripping</Description>
+      </Field>
+      <Field Name="MULTIFINGER" Identifier="2">
+        <Description>Multi-Finger gripping, e.g. with a hand</Description>
+      </Field>
+    </Fields>
+  </DataType>
+
+  <ObjectType SymbolicName="DEVICE:GripPoint" BaseType="OpcUa:BaseObjectType" IsAbstract="true">
+    <Description>Represents a gripping point on a gripper. It describes the gripping functionality and offset from the tool base frame</Description>
+    <Children>
+      <Variable SymbolicName="DEVICE:Type" DataType="DEVICE:GripTypeEnumeration" ModellingRule="Mandatory">
+        <Description>Gripping type</Description>
+      </Variable>
+      <Variable SymbolicName="DEVICE:Offset" TypeDefinition="OpcUa:ThreeDFrameType" DataType="OpcUa:ThreeDFrame" ModellingRule="Mandatory">
+        <Description>Offset to the gripping point from the tool base frame</Description>
+      </Variable>
+    </Children>
+  </ObjectType>
+
+
+  <ObjectType SymbolicName="DEVICE:VacuumGripPoint" BaseType="DEVICE:GripPoint">
+    <Description>Vacuum gripping point</Description>
+    <Children>
+      <Variable SymbolicName="DEVICE:Type" DataType="DEVICE:GripTypeEnumeration" ModellingRule="Mandatory">
+        <Description>Gripping type</Description>
+        <DefaultValue>
+          <!-- 1 = VACUUM -->
+          <uax:UInt16>1</uax:UInt16>
+        </DefaultValue>
+      </Variable>
+    </Children>
+  </ObjectType>
+
+  <ObjectType SymbolicName="DEVICE:ParallelGripPoint" BaseType="DEVICE:GripPoint">
+    <Description>Vacuum gripping point</Description>
+    <Children>
+      <Variable SymbolicName="DEVICE:Type" DataType="DEVICE:GripTypeEnumeration" ModellingRule="Mandatory">
+        <Description>Gripping type</Description>
+        <DefaultValue>
+          <!-- 0 = PARALLEL -->
+          <uax:UInt16>0</uax:UInt16>
+        </DefaultValue>
+      </Variable>
+      <Variable SymbolicName="DEVICE:Range" TypeDefinition="OpcUa:BaseDataVariableType"
+                DataType="OpcUa:Range" ModellingRule="Mandatory" ValueRank="Scalar"
+                AccessLevel="Read">
+      </Variable>
+    </Children>
+  </ObjectType>
+
+  <ObjectType SymbolicName="DEVICE:IGripperType" BaseType="OpcUa:BaseInterfaceType" IsAbstract="true" SupportsEvents="true">
+    <Description>Base interface for every gripper.</Description>
+    <Children>
+      <Object SymbolicName="DEVICE:GripPoints" TypeDefinition="OpcUa:BaseObjectType" ModellingRule="Mandatory">
+        <Description>Contains the possible gripping points</Description>
+        <Children>
+          <Object SymbolicName="DEVICE:GripPoint__No_" TypeDefinition="DEVICE:GripPoint" ModellingRule="MandatoryPlaceholder">
+            <BrowseName>GripPoint_&lt;No&gt;</BrowseName>
+          </Object>
+        </Children>
+      </Object>
+    </Children>
+  </ObjectType>
+
+  <ObjectType SymbolicName="DEVICE:SensorType" BaseType="DI:ComponentType" IsAbstract="false">
+    <Description>A generic object type for any sensor. A sensor only provides data, but can not be controlled.</Description>
+  </ObjectType>
+
+  <ObjectType SymbolicName="DEVICE:ForceTorqueSensorType" BaseType="DEVICE:SensorType" SupportsEvents="true">
+    <Description>The ForceTorqueSensorType represents a controller type for a sensor</Description>
+    <Children>
+      <Object SymbolicName="DEVICE:ForceSensor" TypeDefinition="DEVICE:SensorType" ModellingRule="Mandatory">
+        <Description> Offers information about force experienced by the robot</Description>
+        <Children>
+          <Variable SymbolicName="DEVICE:Force" TypeDefinition="OpcUa:AnalogItemType" DataType="OpcUa:Double" ModellingRule="Mandatory" ValueRank="Array" AccessLevel="ReadWrite">
+            <Description>The current forces in X Y and Z in N</Description>
+          </Variable>
+        </Children>
+      </Object>
+      <Object SymbolicName="DEVICE:TorqueSensor" TypeDefinition="DEVICE:SensorType" ModellingRule="Mandatory">
+        <Description> Offers information about torque experienced by the sensor</Description>
+        <Children>
+          <Variable SymbolicName="DEVICE:Torque" TypeDefinition="OpcUa:AnalogItemType" DataType="OpcUa:Double" ModellingRule="Mandatory" ValueRank="Array" AccessLevel="ReadWrite">
+            <Description>The torque in X Y and Z in Nm</Description>
+          </Variable>
+        </Children>
+      </Object>
+    </Children>
+  </ObjectType>
+
+
+  <ObjectType SymbolicName="DEVICE:SkillTransitionEventType" BaseType="OpcUa:ProgramTransitionEventType" IsAbstract="false">
+    <Description>An event caused by the skill state transition.</Description>
+  </ObjectType>
+  <!-- ### Variable Types ###-->
+
+  <!-- ### Data Types ###-->
+
+
+</ModelDesign>

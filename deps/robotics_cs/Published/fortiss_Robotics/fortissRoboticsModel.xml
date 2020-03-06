@@ -1,0 +1,551 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<ModelDesign
+    xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:OpcUa="http://opcfoundation.org/UA/"
+    xmlns:DI="http://opcfoundation.org/UA/DI/"
+    xmlns:ROB="http://opcfoundation.org/UA/Robotics/"
+    xmlns:DEVICE="https://fortiss.org/UA/Device/"
+    xmlns:FOR_ROB="https://fortiss.org/UA/Robotics/"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    TargetNamespace="https://fortiss.org/UA/Robotics/"
+    TargetXmlNamespace="https://fortiss.org/UA/Robotics/"
+    TargetVersion="0.9.1"
+    TargetPublicationDate="2018-06-24T00:00:00Z"
+    xmlns="http://opcfoundation.org/UA/ModelDesign.xsd">
+
+  <Namespaces>
+    <!-- Do not change the order here. Otherwise the nodeIds inside extension objects are not correct anymore.-->
+    <Namespace Name="fortissRobotics" Prefix="fortiss_Robotics"
+                             XmlNamespace="https://fortiss.org/UA/Robotics/Types.xsd" XmlPrefix="fortiss_Robotics">https://fortiss.org/UA/Robotics/</Namespace>
+    <Namespace Name="fortissDevice" Prefix="fortiss_Device" XmlNamespace="https://fortiss.org/UA/Device/Types.xsd"
+               XmlPrefix="fortiss_Device" FilePath="deps/device/fortissDeviceModel">https://fortiss.org/UA/Device/</Namespace>
+    <Namespace Name="OpcUa" Version="1.03" PublicationDate="2013-12-02T00:00:00Z" Prefix="Opc.Ua"
+               InternalPrefix="Opc.Ua.Server" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+               XmlPrefix="OpcUa">http://opcfoundation.org/UA/</Namespace>
+    <Namespace Name="OpcUaDi" Prefix="Opc.Ua.Di" XmlNamespace="http://opcfoundation.org/UA/DI/Types.xsd"
+               XmlPrefix="DI" FilePath="OpcUaDiModel">http://opcfoundation.org/UA/DI/</Namespace>
+    <Namespace Name="OpcUaRobotics" Prefix="Opc.Ua.Robotics"
+               XmlNamespace="http://opcfoundation.org/UA/Robotics/Types.xsd" XmlPrefix="Robotics"
+               FilePath="deps/vdma_robotics/OpcUaRoboticsModel">http://opcfoundation.org/UA/Robotics/</Namespace>
+  </Namespaces>
+
+
+  <Object SymbolicName="FOR_ROB:FortissRoboticsNamespaceMetadata" TypeDefinition="OpcUa:NamespaceMetadataType">
+    <BrowseName>https://fortiss.org/UA/Robotics/</BrowseName>
+    <Children>
+      <Property SymbolicName="OpcUa:NamespaceUri" DataType="OpcUa:String">
+        <DefaultValue>
+          <uax:String>https://fortiss.org/UA/Robotics/</uax:String>
+        </DefaultValue>
+      </Property>
+      <Property SymbolicName="OpcUa:NamespaceVersion" DataType="OpcUa:String">
+        <DefaultValue>
+          <uax:String>1.00</uax:String>
+        </DefaultValue>
+      </Property>
+      <Property SymbolicName="OpcUa:NamespacePublicationDate" DataType="OpcUa:DateTime">
+        <DefaultValue>
+          <uax:DateTime>2019-01-01</uax:DateTime>
+        </DefaultValue>
+      </Property>
+      <Property SymbolicName="OpcUa:IsNamespaceSubset" DataType="OpcUa:Boolean">
+        <DefaultValue>
+          <uax:Boolean>false</uax:Boolean>
+        </DefaultValue>
+      </Property>
+      <Property SymbolicName="OpcUa:StaticNodeIdTypes" DataType="OpcUa:IdType" ValueRank="Array">
+        <DefaultValue>
+          <uax:ListOfInt32>
+            <uax:Int32>0</uax:Int32>
+          </uax:ListOfInt32>
+        </DefaultValue>
+      </Property>
+      <Property SymbolicName="OpcUa:StaticNumericNodeIdRange" DataType="OpcUa:NumericRange" ValueRank="Array">
+        <DefaultValue>
+          <uax:ListOfString>
+            <uax:String>1:65535</uax:String>
+          </uax:ListOfString>
+        </DefaultValue>
+      </Property>
+      <Property SymbolicName="OpcUa:StaticStringNodeIdPattern" DataType="OpcUa:String">
+        <DefaultValue>
+          <uax:String></uax:String>
+        </DefaultValue>
+      </Property>
+      <Property SymbolicName="OpcUa:DefaultRolePermissions" ModellingRule="Mandatory"/>
+      <Property SymbolicName="OpcUa:DefaultUserRolePermissions" ModellingRule="Mandatory"/>
+      <Property SymbolicName="OpcUa:DefaultAccessRestrictions" ModellingRule="Mandatory"/>
+    </Children>
+    <References>
+      <Reference IsInverse="true">
+        <ReferenceType>OpcUa:HasComponent</ReferenceType>
+        <TargetId>OpcUa:Server_Namespaces</TargetId>
+      </Reference>
+    </References>
+  </Object>
+
+  <!-- ### Reference Types ###-->
+
+
+  <!-- ### Method Types ###-->
+
+  <!-- ### Object Types ###-->
+
+  <ObjectType SymbolicName="FOR_ROB:MoveSkillType" BaseType="DEVICE:SkillType" IsAbstract="true">
+    <Description>Move a robot using a specific tool frame</Description>
+    <Children>
+      <Object SymbolicName="DI:ParameterSet" ModellingRule="Mandatory">
+        <Children>
+          <Variable SymbolicName="FOR_ROB:ToolFrame" TypeDefinition="OpcUa:BaseDataVariableType" DataType="OpcUa:String"
+                    ModellingRule="Mandatory" ValueRank="Scalar" AccessLevel="ReadWrite">
+            <Description>The name of the tool frame to be used for the motion</Description>
+          </Variable>
+        </Children>
+      </Object>
+    </Children>
+  </ObjectType>
+
+
+  <ObjectType SymbolicName="FOR_ROB:LinearMoveSkillType" BaseType="FOR_ROB:MoveSkillType" IsAbstract="true">
+    <Description>Move a robot using a specific tool in a linear motion</Description>
+    <Children>
+      <Object SymbolicName="DI:ParameterSet" ModellingRule="Mandatory">
+        <Children>
+          <Variable SymbolicName="FOR_ROB:MaxAcceleration" TypeDefinition="OpcUa:AnalogUnitType"
+                    DataType="OpcUa:Double" ModellingRule="Mandatory" ValueRank="Array"
+                    ArrayDimensions="6" AccessLevel="ReadWrite">
+            <Description>Maximum acceleration of the robot should move. First three parameters are for x,y,z in m/s^2. The next three for orientation in rad/s^2</Description>
+          </Variable>
+          <Variable SymbolicName="FOR_ROB:MaxVelocity" TypeDefinition="OpcUa:AnalogUnitType"
+                    DataType="OpcUa:Double" ModellingRule="Mandatory" ValueRank="Array"
+                    ArrayDimensions="6" AccessLevel="ReadWrite">
+            <Description>Maximum velocity of the robot should move. First three parameters are for x,y,z in m/s. The next three for orientation in rad/s</Description>
+          </Variable>
+        </Children>
+      </Object>
+    </Children>
+  </ObjectType>
+
+  <ObjectType SymbolicName="FOR_ROB:PtpMoveSkillType" BaseType="FOR_ROB:MoveSkillType" IsAbstract="true">
+    <Description>Move a robot using a specific tool in a point-to-point motion</Description>
+    <Children>
+      <Object SymbolicName="DI:ParameterSet" ModellingRule="Mandatory">
+        <Children>
+          <Variable SymbolicName="FOR_ROB:MaxAcceleration" TypeDefinition="OpcUa:AnalogUnitType"
+                    DataType="OpcUa:Double" ModellingRule="Mandatory" ValueRank="Array"
+                    AccessLevel="ReadWrite">
+            <Description>Maximum acceleration the robot should move in rad/s^2 for every axis</Description>
+          </Variable>
+          <Variable SymbolicName="FOR_ROB:MaxVelocity" TypeDefinition="OpcUa:AnalogUnitType"
+                    DataType="OpcUa:Double" ModellingRule="Mandatory" ValueRank="Array"
+                    AccessLevel="ReadWrite">
+            <Description>Maximum velocity the robot should move in rad/s for every axis</Description>
+          </Variable>
+        </Children>
+      </Object>
+    </Children>
+  </ObjectType>
+
+
+  <ObjectType SymbolicName="FOR_ROB:ICartesianMoveSkillParameterType" BaseType="OpcUa:BaseInterfaceType"
+              IsAbstract="true"
+              SupportsEvents="true">
+    <Description>The interface definition of a cartesian move skill.
+    </Description>
+    <Children>
+      <Object SymbolicName="OpcUa:FinalResultData" ModellingRule="Mandatory">
+        <Children>
+          <Variable SymbolicName="FOR_ROB:ForcesExceeded" TypeDefinition="OpcUa:ThreeDVectorType"
+                    ModellingRule="Mandatory" ValueRank="Scalar" AccessLevel="Read">
+                  <Description>The amount by which the force limits were exceeded</Description>
+          </Variable>
+          <Variable SymbolicName="FOR_ROB:ForcesMax" TypeDefinition="OpcUa:ThreeDVectorType"
+                    ModellingRule="Mandatory" ValueRank="Scalar" AccessLevel="Read">
+                  <Description>Maximum force measured during execution of the skill</Description>
+          </Variable>
+        </Children>
+      </Object>
+      <Object SymbolicName="DI:ParameterSet" ModellingRule="Mandatory">
+        <Children>
+          <Variable SymbolicName="FOR_ROB:TargetPosition" TypeDefinition="OpcUa:ThreeDFrameType"
+                    DataType="OpcUa:ThreeDFrame" ModellingRule="Mandatory" ValueRank="Scalar"
+                    AccessLevel="ReadWrite">
+            <Description>Absolute goal position in cartesian space</Description>
+          </Variable>
+          <Variable SymbolicName="FOR_ROB:AxisBounds" TypeDefinition="OpcUa:BaseDataVariableType"
+                    DataType="OpcUa:Range" ModellingRule="Mandatory" ValueRank="Array"
+                    AccessLevel="ReadWrite">
+            <Description>Define a range within which the joints should end up in. Used to limit the solutions for the
+              inverse kinematics calculation.
+            </Description>
+          </Variable>
+        </Children>
+      </Object>
+    </Children>
+  </ObjectType>
+
+  <ObjectType SymbolicName="FOR_ROB:IJointMoveSkillParameterType" BaseType="OpcUa:BaseInterfaceType" IsAbstract="true"
+              SupportsEvents="true">
+    <Description>The interface definition of a joint move skill.
+    </Description>
+    <Children>
+      <Object SymbolicName="DI:ParameterSet" ModellingRule="Mandatory">
+        <Children>
+          <Variable SymbolicName="FOR_ROB:TargetJointPosition"
+                    TypeDefinition="OpcUa:AnalogItemType" DataType="OpcUa:Double"
+                    ModellingRule="Mandatory" ValueRank="Array" AccessLevel="ReadWrite">
+            <Description>The new axis position array where the device should move to
+            </Description>
+          </Variable>
+        </Children>
+      </Object>
+    </Children>
+  </ObjectType>
+
+
+  <ObjectType SymbolicName="FOR_ROB:IForceMoveParameterType" BaseType="OpcUa:BaseInterfaceType" IsAbstract="true"
+              SupportsEvents="true">
+    <Description>The interface definition of a force move skill.
+    </Description>
+    <Children>
+      <Object SymbolicName="DI:ParameterSet" ModellingRule="Mandatory">
+        <Children>
+          <Variable SymbolicName="FOR_ROB:MaxForce" TypeDefinition="OpcUa:ThreeDVectorType" ModellingRule="Mandatory" AccessLevel="ReadWrite">
+            <Description>The maximum force amounts which should not be exceeded by the movement.
+            </Description>
+          </Variable>
+        </Children>
+      </Object>
+    </Children>
+  </ObjectType>
+
+  <ObjectType SymbolicName="FOR_ROB:CartesianLinearMoveSkillType" BaseType="FOR_ROB:LinearMoveSkillType"
+              IsAbstract="false">
+    <Description>Move a robot using a specific tool in a linear motion with cartesian target</Description>
+    <References>
+      <Reference IsInverse="false">
+        <ReferenceType>OpcUa:HasInterface</ReferenceType>
+        <TargetId>FOR_ROB:ICartesianMoveSkillParameterType</TargetId>
+      </Reference>
+    </References>
+  </ObjectType>
+
+  <ObjectType SymbolicName="FOR_ROB:JointLinearMoveSkillType" BaseType="FOR_ROB:LinearMoveSkillType" IsAbstract="false">
+    <Description>Move a robot using a specific tool in a linear motion with cartesian target</Description>
+    <References>
+      <Reference IsInverse="false">
+        <ReferenceType>OpcUa:HasInterface</ReferenceType>
+        <TargetId>FOR_ROB:IJointMoveSkillParameterType</TargetId>
+      </Reference>
+    </References>
+  </ObjectType>
+
+
+  <ObjectType SymbolicName="FOR_ROB:CartesianPtpMoveSkillType" BaseType="FOR_ROB:PtpMoveSkillType" IsAbstract="false">
+    <Description>Move a robot using a specific tool in a ptp motion with cartesian target</Description>
+    <References>
+      <Reference IsInverse="false">
+        <ReferenceType>OpcUa:HasInterface</ReferenceType>
+        <TargetId>FOR_ROB:ICartesianMoveSkillParameterType</TargetId>
+      </Reference>
+    </References>
+  </ObjectType>
+
+  <ObjectType SymbolicName="FOR_ROB:JointPtpMoveSkillType" BaseType="FOR_ROB:PtpMoveSkillType" IsAbstract="false">
+    <Description>Move a robot using a specific tool in a ptp motion with cartesian target</Description>
+    <References>
+      <Reference IsInverse="false">
+        <ReferenceType>OpcUa:HasInterface</ReferenceType>
+        <TargetId>FOR_ROB:IJointMoveSkillParameterType</TargetId>
+      </Reference>
+    </References>
+  </ObjectType>
+
+  <!-- SubStateMachine for halted for CartesianLinearForceMoveSkillType -->
+  <ObjectType SymbolicName="FOR_ROB:FinishStateMachineType" BaseType="OpcUa:FiniteStateMachineType">
+    <Description>Describes whether the robot halted because a successful movement or because of exceeded forces
+    </Description>
+    <Children>
+      <Object SymbolicName="FOR_ROB:ForceExceeded" TypeDefinition="OpcUa:StateType" ModellingRule="None">
+        <Children>
+          <Property SymbolicName="OpcUa:StateNumber" DataType="OpcUa:UInt32" ValueRank="Scalar">
+            <DefaultValue>
+              <uax:UInt32>8</uax:UInt32>
+            </DefaultValue>
+          </Property>
+        </Children>
+      </Object>
+      <Object SymbolicName="FOR_ROB:Success" TypeDefinition="OpcUa:StateType" ModellingRule="None">
+        <Children>
+          <Property SymbolicName="OpcUa:StateNumber" DataType="OpcUa:UInt32" ValueRank="Scalar">
+            <DefaultValue>
+              <uax:UInt32>9</uax:UInt32>
+            </DefaultValue>
+          </Property>
+        </Children>
+      </Object>
+      <Object SymbolicName="FOR_ROB:ForceExceededToRunning" TypeDefinition="OpcUa:TransitionType" ModellingRule="None">
+        <Children>
+          <Property SymbolicName="OpcUa:TransitionNumber" DataType="OpcUa:UInt32" ValueRank="Scalar">
+            <DefaultValue>
+              <uax:UInt32>2</uax:UInt32>
+            </DefaultValue>
+          </Property>
+        </Children>
+        <References>
+          <Reference>
+            <ReferenceType>OpcUa:FromState</ReferenceType>
+            <TargetId>FOR_ROB:FinishStateMachineType_ForceExceeded</TargetId>
+          </Reference>
+          <Reference>
+            <ReferenceType>OpcUa:ToState</ReferenceType>
+            <TargetId>OpcUa:ProgramStateMachineType_Running</TargetId>
+          </Reference>
+        </References>
+      </Object>
+      <Object SymbolicName="FOR_ROB:SuccessToRunning" TypeDefinition="OpcUa:TransitionType" ModellingRule="None">
+        <Children>
+          <Property SymbolicName="OpcUa:TransitionNumber" DataType="OpcUa:UInt32" ValueRank="Scalar">
+            <DefaultValue>
+              <uax:UInt32>3</uax:UInt32>
+            </DefaultValue>
+          </Property>
+        </Children>
+        <References>
+          <Reference>
+            <ReferenceType>OpcUa:FromState</ReferenceType>
+            <TargetId>FOR_ROB:FinishStateMachineType_Success</TargetId>
+          </Reference>
+          <Reference>
+            <ReferenceType>OpcUa:ToState</ReferenceType>
+            <TargetId>OpcUa:ProgramStateMachineType_Running</TargetId>
+          </Reference>
+        </References>
+      </Object>
+      <Object SymbolicName="FOR_ROB:SuccessToHalted" TypeDefinition="OpcUa:TransitionType" ModellingRule="None">
+        <Children>
+          <Property SymbolicName="OpcUa:TransitionNumber" DataType="OpcUa:UInt32" ValueRank="Scalar">
+            <DefaultValue>
+              <uax:UInt32>4</uax:UInt32>
+            </DefaultValue>
+          </Property>
+        </Children>
+        <References>
+          <Reference>
+            <ReferenceType>OpcUa:FromState</ReferenceType>
+            <TargetId>FOR_ROB:FinishStateMachineType_Success</TargetId>
+          </Reference>
+          <Reference>
+            <ReferenceType>OpcUa:ToState</ReferenceType>
+            <TargetId>OpcUa:ProgramStateMachineType_Halted</TargetId>
+          </Reference>
+        </References>
+      </Object>
+      <Object SymbolicName="FOR_ROB:ForceExceededToHalted" TypeDefinition="OpcUa:TransitionType" ModellingRule="None">
+        <Children>
+          <Property SymbolicName="OpcUa:TransitionNumber" DataType="OpcUa:UInt32" ValueRank="Scalar">
+            <DefaultValue>
+              <uax:UInt32>5</uax:UInt32>
+            </DefaultValue>
+          </Property>
+        </Children>
+        <References>
+          <Reference>
+            <ReferenceType>OpcUa:FromState</ReferenceType>
+            <TargetId>FOR_ROB:FinishStateMachineType_ForceExceeded</TargetId>
+          </Reference>
+          <Reference>
+            <ReferenceType>OpcUa:ToState</ReferenceType>
+            <TargetId>OpcUa:ProgramStateMachineType_Halted</TargetId>
+          </Reference>
+        </References>
+      </Object>
+      <Object SymbolicName="FOR_ROB:RunningToForceExceeded" TypeDefinition="OpcUa:TransitionType" ModellingRule="None">
+        <Children>
+          <Property SymbolicName="OpcUa:TransitionNumber" DataType="OpcUa:UInt32" ValueRank="Scalar">
+            <DefaultValue>
+              <uax:UInt32>6</uax:UInt32>
+            </DefaultValue>
+          </Property>
+        </Children>
+        <References>
+          <Reference>
+            <ReferenceType>OpcUa:FromState</ReferenceType>
+            <TargetId>OpcUa:ProgramStateMachineType_Running</TargetId>
+          </Reference>
+          <Reference>
+            <ReferenceType>OpcUa:ToState</ReferenceType>
+            <TargetId>FOR_ROB:FinishStateMachineType_ForceExceeded</TargetId>
+          </Reference>
+        </References>
+      </Object>
+      <Object SymbolicName="FOR_ROB:RunningToSuccess" TypeDefinition="OpcUa:TransitionType" ModellingRule="None">
+        <Children>
+          <Property SymbolicName="OpcUa:TransitionNumber" DataType="OpcUa:UInt32" ValueRank="Scalar">
+            <DefaultValue>
+              <uax:UInt32>7</uax:UInt32>
+            </DefaultValue>
+          </Property>
+        </Children>
+        <References>
+          <Reference>
+            <ReferenceType>OpcUa:FromState</ReferenceType>
+            <TargetId>OpcUa:ProgramStateMachineType_Running</TargetId>
+          </Reference>
+          <Reference>
+            <ReferenceType>OpcUa:ToState</ReferenceType>
+            <TargetId>FOR_ROB:FinishStateMachineType_Success</TargetId>
+          </Reference>
+        </References>
+      </Object>
+    </Children>
+  </ObjectType>
+
+  <ObjectType SymbolicName="FOR_ROB:CartesianLinearForceMoveSkillType" BaseType="FOR_ROB:CartesianLinearMoveSkillType">
+    <Description>Move a robot using a specific tool in a linear motion with cartesian target and force limits</Description>
+    <References>
+      <Reference IsInverse="false">
+        <ReferenceType>OpcUa:HasInterface</ReferenceType>
+        <TargetId>FOR_ROB:IForceMoveParameterType</TargetId>
+      </Reference>
+      <Reference IsInverse="false">
+        <ReferenceType>OpcUa:HasInterface</ReferenceType>
+        <TargetId>FOR_ROB:ICartesianMoveSkillParameterType</TargetId>
+      </Reference>
+    </References>
+    <Children>
+      <Object SymbolicName="FOR_ROB:FinishStateMachine" TypeDefinition="FOR_ROB:FinishStateMachineType"/>
+      <Object SymbolicName="OpcUa:FinalResultData" ModellingRule="Mandatory"/>
+    </Children>
+  </ObjectType>
+
+  <ObjectType SymbolicName="FOR_ROB:StreamSkillType" BaseType="DEVICE:SkillType" IsAbstract="true">
+    <Description>Move a robot using position streaming</Description>
+  </ObjectType>
+
+  <ObjectType SymbolicName="FOR_ROB:PositionStreamSkillType" BaseType="DEVICE:SkillType" IsAbstract="true">
+    <Description>Move a robot using position streaming</Description>
+    <Children>
+      <Object SymbolicName="DI:ParameterSet" ModellingRule="Mandatory">
+        <Children>
+          <Variable SymbolicName="FOR_ROB:TargetPosition" TypeDefinition="OpcUa:ThreeDFrameType"
+                    DataType="OpcUa:ThreeDFrame" ModellingRule="Mandatory" ValueRank="Scalar"
+                    AccessLevel="ReadWrite">
+            <Description>Absolute position in cartesian space where the robot should move to.
+              As soon as there is a new value written to this variable, the robot will move to that position if the
+              skill is in running state.
+            </Description>
+          </Variable>
+        </Children>
+      </Object>
+    </Children>
+  </ObjectType>
+
+  <ObjectType SymbolicName="FOR_ROB:FortissMotionDeviceType" BaseType="ROB:MotionDeviceType" IsAbstract="false">
+    <Children>
+      <Method SymbolicName="FOR_ROB:FlangeToolSet" TypeDefinition="FOR_ROB:FlangeToolSetMethodType"/>
+      <Method SymbolicName="FOR_ROB:FlangeToolClear" TypeDefinition="FOR_ROB:FlangeToolClearMethodType"/>
+
+      <Object SymbolicName="FOR_ROB:FlangeLoad" TypeDefinition="ROB:LoadType" ModellingRule="Mandatory">
+        <Children>
+          <Variable SymbolicName="ROB:Mass" TypeDefinition="OpcUa:BaseDataVariableType"
+                    DataType="OpcUa:Double" ModellingRule="Mandatory">
+          </Variable>
+          <Variable SymbolicName="ROB:CenterOfMass" TypeDefinition="OpcUa:ThreeDFrameType" DataType="OpcUa:ThreeDFrame"
+                    ModellingRule="Mandatory">
+          </Variable>
+          <Variable SymbolicName="ROB:Inertia" TypeDefinition="OpcUa:ThreeDVectorType" DataType="OpcUa:ThreeDVector"
+                    ModellingRule="Mandatory">
+          </Variable>
+        </Children>
+      </Object>
+      <Object SymbolicName="FOR_ROB:FlangeTool" TypeDefinition="OpcUa:BaseObjectType" ModellingRule="Mandatory">
+        <Children>
+          <Property SymbolicName="ROB:Name" DataType="OpcUa:String" ValueRank="Scalar"
+                    ModellingRule="Mandatory">
+          </Property>
+          <Variable SymbolicName="OpcUa:ThreeDFrame" TypeDefinition="OpcUa:ThreeDFrameType" DataType="OpcUa:ThreeDFrame"
+                    ModellingRule="Mandatory">
+          </Variable>
+        </Children>
+      </Object>
+
+      <Object SymbolicName="ROB:FlangeLoad" TypeDefinition="ROB:LoadType" ModellingRule="Mandatory">
+        <Description>The FlangeLoad is the load on the flange or at the mounting point of the
+          MotionDevice.\nThis can be the maximum load of the MotionDevice.
+        </Description>
+      </Object>
+      <Object SymbolicName="DI:ParameterSet" ModellingRule="Mandatory">
+        <Children>
+          <Variable SymbolicName="FOR_ROB:WorldToRobotBase" TypeDefinition="OpcUa:ThreeDFrameType" DataType="OpcUa:ThreeDFrame"
+                    ModellingRule="Mandatory" AccessLevel="ReadWrite">
+            <Description>Transformation frame from the world frame to the robot base frame. This transformation can be used by
+              other components to transform world coordinates to cartesian coordinates in robot frame.
+            </Description>
+            <DefaultValue>
+              <uax:ExtensionObject>
+                <uax:TypeId>
+                  <!-- we can not use OpcUa:ThreeDFrame of the DataType here. The model compiler does not replace it.
+                  Therefore we need to use the resulting node id -->
+                  <uax:Identifier>ns=0;i=18814</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                  <ThreeDFrame xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                    <CartesianCoordinates>
+                      <X>0</X>
+                      <Y>0</Y>
+                      <Z>0</Z>
+                    </CartesianCoordinates>
+                    <Orientation>
+                      <A>0</A>
+                      <B>0</B>
+                      <C>0</C>
+                    </Orientation>
+                  </ThreeDFrame>
+                </uax:Body>
+              </uax:ExtensionObject>
+            </DefaultValue>
+          </Variable>
+          <Variable SymbolicName="ROB:DeviceOnPath" TypeDefinition="OpcUa:BaseDataVariableType"
+                    DataType="OpcUa:Boolean" ModellingRule="Optional">
+            <Description>The DeviceOnPath indicates whether the motion device is on the planned program
+              path:"true".\nIf the MotionDevice leaves this path in the failure case or in an emergency
+              stop, this value is "false".
+            </Description>
+          </Variable>
+          <Variable SymbolicName="ROB:ProgrammedDeviceSpeed" TypeDefinition="OpcUa:BaseDataVariableType"
+                    DataType="OpcUa:Int32" ModellingRule="Optional">
+            <Description>ProgrammedDeviceSpeed is the programmed motion device speed (0-100%).</Description>
+          </Variable>
+          <Variable SymbolicName="ROB:UnderControl" TypeDefinition="OpcUa:BaseDataVariableType"
+                    DataType="OpcUa:Boolean" ModellingRule="Optional">
+            <Description>AxisUnderControl indicates whether the actuators of the MotionDevice are under
+              power and control:"true".\nThe MotionDevice can however be at standstill.
+            </Description>
+          </Variable>
+        </Children>
+      </Object>
+    </Children>
+  </ObjectType>
+
+  <!-- ### Variable Types ###-->
+
+
+  <Method SymbolicName="FOR_ROB:FlangeToolSetMethodType">
+    <InputArguments>
+      <Argument Name="Name" DataType="OpcUa:String"/>
+      <Argument Name="Frame" DataType="OpcUa:ThreeDFrame"/>
+      <Argument Name="Mass" DataType="OpcUa:Double"/>
+      <Argument Name="CenterOfMass" DataType="OpcUa:ThreeDFrame"/>
+      <Argument Name="Inertia" DataType="OpcUa:ThreeDVector"/>
+    </InputArguments>
+  </Method>
+
+  <Method SymbolicName="FOR_ROB:FlangeToolClearMethodType">
+    <InputArguments>
+    </InputArguments>
+  </Method>
+
+</ModelDesign>

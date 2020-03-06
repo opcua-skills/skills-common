@@ -1,0 +1,13 @@
+# Set the default behavior, in case people don't have core.autocrlf set.
+* text=auto
+
+# For the main schema files do not change the line ending
+
+*.xml text eol=crlf
+*.csv text eol=crlf
+*.xsd text eol=crlf
+*.cs text eol=crlf
+*.bsd text eol=crlf
+*.bat text eol=crlf
+
+.sh text eol=lf

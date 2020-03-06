@@ -1,0 +1,28 @@
+<xs:schema
+  xmlns:DI="http://opcfoundation.org/UA/DI/Types.xsd"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  xmlns:tns="https://fortiss.org/UA/Device/Types.xsd"
+  targetNamespace="https://fortiss.org/UA/Device/Types.xsd"
+  elementFormDefault="qualified"
+>
+  <xs:import namespace="http://opcfoundation.org/UA/2008/02/Types.xsd" />
+  <xs:import namespace="http://opcfoundation.org/UA/DI/Types.xsd" />
+
+  <xs:simpleType  name="GripTypeEnumeration">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="PARALLEL_0" />
+      <xs:enumeration value="VACUUM_1" />
+      <xs:enumeration value="MULTIFINGER_2" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="GripTypeEnumeration" type="tns:GripTypeEnumeration" />
+
+  <xs:complexType name="ListOfGripTypeEnumeration">
+    <xs:sequence>
+      <xs:element name="GripTypeEnumeration" type="tns:GripTypeEnumeration" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfGripTypeEnumeration" type="tns:ListOfGripTypeEnumeration" nillable="true"></xs:element>
+
+</xs:schema>

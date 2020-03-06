@@ -23,13 +23,13 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Install dependencies
-      run: sudo apt-get install libconfig++-dev
+      run: sudo apt-get install libconfig++-dev libmbedtls-dev
     
     # Install current master
     - name: Install open62541
-      run: ./tools/ci_install_open62541.sh 82611a487d4f2306ddfe6c9037a7686852517bf4
+      run: ./tools/install_open62541.sh 82611a487d4f2306ddfe6c9037a7686852517bf4 ${{runner.workspace}}/install
     - name: Install cli11
-      run: ./tools/ci_install_cli11.sh
+      run: ./tools/install_cli11.sh ${{runner.workspace}}/install
     
     - name: Create Build Environment
       run: cmake -E make_directory ${{runner.workspace}}/build
@@ -37,7 +37,7 @@ jobs:
     - name: Configure CMake
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCOMMON_TEST_BUILD=ON
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_PREFIX_PATH=${{runner.workspace}}/install -DCOMMON_TEST_BUILD=ON
 
     - name: Build
       working-directory: ${{runner.workspace}}/build
