@@ -26,11 +26,12 @@ jobs:
       run: sudo apt-get install libconfig++-dev libmbedtls-dev
 
     - name: Install rl
-      run: sudo apt-add-repository ppa:roblib/ppa && sudo apt-get update && sudo apt-get install librl-dev
+        run: ./tools/install_rl.sh ${{runner.workspace}}/install
     
     # Install current master
     - name: Install open62541
       run: ./tools/install_open62541.sh 82611a487d4f2306ddfe6c9037a7686852517bf4 ${{runner.workspace}}/install
+
     - name: Install cli11
       run: ./tools/install_cli11.sh ${{runner.workspace}}/install
     
