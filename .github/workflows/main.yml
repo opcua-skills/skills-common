@@ -41,7 +41,7 @@ jobs:
     - name: Configure CMake
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_PREFIX_PATH=${{runner.workspace}}/install -DCOMMON_TEST_BUILD=ON
+      run: cmake $GITHUB_WORKSPACE -DrlDIR=${{runner.workspace}}/install/lib/cmake/rl-0.7.0/ -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_PREFIX_PATH=${{runner.workspace}}/install -DCOMMON_TEST_BUILD=ON
 
     - name: Build
       working-directory: ${{runner.workspace}}/build
