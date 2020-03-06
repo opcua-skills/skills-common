@@ -26,7 +26,7 @@ jobs:
       run: sudo apt-get install libconfig++-dev libmbedtls-dev
 
     - name: Install rl
-        run: ./tools/install_rl.sh ${{runner.workspace}}/install
+      run: ./tools/install_rl.sh ${{runner.workspace}}/install
     
     # Install current master
     - name: Install open62541
