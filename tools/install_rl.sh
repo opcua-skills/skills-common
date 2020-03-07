@@ -24,17 +24,17 @@ else
 fi
 
 
-mkdir $HOME/cli11_tmp_install
-cd $HOME/cli11_tmp_install
+mkdir $HOME/rl_tmp_install
+cd $HOME/rl_tmp_install
 
-git clone --branch v1.7.1 https://github.com/CLIUtils/CLI11.git
-cd CLI11
+git clone https://github.com/roboticslibrary/rl
+cd rl
 #git submodule update --init --recursive
 
 mkdir build && cd build
 
-cmake -DCLI11_TESTING=OFF -DCLI11_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo $install_prefix ..
-make -j3 install
+cmake -DRL_BUILD_PLAN=OFF -DRL_BUILD_DEMOS=ON -DRL_USE_QT5=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo $install_prefix ..
+sudo make -j3 install
 cd $HOME
 
-rm -rf $HOME/cli11_tmp_install
+sudo rm -rf $HOME/rl_tmp_install
