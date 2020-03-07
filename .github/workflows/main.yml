@@ -23,7 +23,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Install dependencies for RL
-      run: sudo apt-get install -y --no-install-recommends freeglut3-dev libboost-dev libbullet-dev libbullet-extras-dev libcgal-dev libcurl4-openssl-dev libcoin80-dev libdc1394-22-dev libeigen3-dev freeglut3-dev libgraphviz-dev libnlopt-dev libode-dev libopencv-dev qtbase5-dev libsimage-dev libsoqt4-dev libsolid3d-dev libxml2-dev libxslt1-dev libzip-dev libconfig++-dev libmbedtls-dev
+      run: sudo apt-add-repository ppa:roblib/ppa && sudo apt update && sudo apt-get install -y --no-install-recommends freeglut3-dev libboost-dev libbullet-dev libbullet-extras-dev libcgal-dev libcurl4-openssl-dev libcoin80-dev libdc1394-22-dev libeigen3-dev freeglut3-dev libgraphviz-dev libnlopt-dev libode-dev libopencv-dev qtbase5-dev libsimage-dev libsoqt4-dev libsolid3d-dev libxml2-dev libxslt1-dev libzip-dev libconfig++-dev libmbedtls-dev
 
     - name: Install rl
       run: ./tools/install_rl.sh
