@@ -37,4 +37,4 @@ cmake -DRL_BUILD_PLAN=OFF -DRL_BUILD_DEMOS=ON -DRL_USE_QT5=OFF -DCMAKE_BUILD_TYP
 sudo make -j3 install
 cd $HOME
 
-rm -rf $HOME/rl_tmp_install
+sudo rm -rf $HOME/rl_tmp_install
