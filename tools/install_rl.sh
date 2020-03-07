@@ -18,11 +18,11 @@ errorTrap() {
 trap errorTrap 0
 
 if [ $# -ne 1 ]; then
-    echo "Usage: script.sh PATH_TO_INSTALL"
-    exit 1
+    install_prefix=""
+else
+	install_prefix=-DCMAKE_INSTALL_PREFIX:PATH=$1
 fi
 
-install_path=$1
 
 mkdir $HOME/rl_tmp_install
 cd $HOME/rl_tmp_install
@@ -33,8 +33,8 @@ cd rl
 
 mkdir build && cd build
 
-cmake -DRL_BUILD_PLAN=OFF -DRL_BUILD_DEMOS=ON -DRL_USE_QT5=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX:PATH=$install_path ..
-make -j3 install
+cmake -DRL_BUILD_PLAN=OFF -DRL_BUILD_DEMOS=ON -DRL_USE_QT5=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo $install_prefix ..
+make -j install
 cd $HOME
 
 rm -rf $HOME/rl_tmp_install

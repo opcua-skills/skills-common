@@ -18,11 +18,11 @@ errorTrap() {
 trap errorTrap 0
 
 if [ $# -ne 1 ]; then
-    echo "Usage: script.sh PATH_TO_INSTALL"
-    exit 1
+    install_prefix=""
+else
+	install_prefix=-DCMAKE_INSTALL_PREFIX:PATH=$1
 fi
 
-install_path=$1
 
 mkdir $HOME/cli11_tmp_install
 cd $HOME/cli11_tmp_install
@@ -33,7 +33,7 @@ cd CLI11
 
 mkdir build && cd build
 
-cmake -DCLI11_TESTING=OFF -DCLI11_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=$install_path ..
+cmake -DCLI11_TESTING=OFF -DCLI11_EXAMPLES=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo $install_prefix ..
 make -j3 install
 cd $HOME
 
