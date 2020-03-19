@@ -1,5 +1,8 @@
 #!/bin/bash
 
+
+DEFAULT_VERSION=master
+
 set -eE
 errorTrap() {
     last_rv=$?
@@ -17,18 +20,27 @@ errorTrap() {
 
 trap errorTrap 0
 
-if [ $# -ne 1 ]; then
-    install_prefix=""
-else
-	install_prefix=-DCMAKE_INSTALL_PREFIX:PATH=$1
+
+if [ $# -gt 2 ]; then
+    echo "Usage: script.sh COMMIT_ID PATH_TO_INSTALL"
+    exit 1
 fi
 
+if [ $# -eq 1 ]; then
+    commit_id=$1
+    install_path=""
+else
+    commit_id=$1
+    install_path=-DCMAKE_INSTALL_PREFIX:PATH=$1
+fi
 
 mkdir $HOME/rl_tmp_install
 cd $HOME/rl_tmp_install
 
 git clone https://github.com/roboticslibrary/rl
 cd rl
+# Current master
+git checkout $commit_id
 #git submodule update --init --recursive
 
 mkdir build && cd build
