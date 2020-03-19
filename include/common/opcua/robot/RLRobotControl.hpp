@@ -28,10 +28,6 @@
 #include "libconfig.h++"
 
 #include <rl/mdl/Dynamic.h>
-#include <rl/prog/JointMotion.h>
-#include <rl/prog/LinearMotion.h>
-#include <rl/prog/JointPositionControl.h>
-#include <rl/prog/MotionDevice.h>
 #include <rl/hal/DeviceException.h>
 #include <rl/hal/ComException.h>
 #include <rl/hal/CartesianPositionActuator.h>
