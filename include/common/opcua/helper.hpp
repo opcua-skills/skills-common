@@ -1352,8 +1352,8 @@ namespace fortiss {
 
             //FIXME for now we use a static username and password. On the long run we could use LDAP or similar.
 
-            UA_String username = UA_STRING_ALLOC("fortiss");
-            UA_String password = UA_STRING_ALLOC("fortiss#Demo");
+            UA_String username = UA_STRING_ALLOC("demo");
+            UA_String password = UA_STRING_ALLOC("demo#PWD");
             static const size_t usernamePasswordsSize = 1;
             static UA_UsernamePasswordLogin usernamePasswords[1] = {
                     {.username = username,
