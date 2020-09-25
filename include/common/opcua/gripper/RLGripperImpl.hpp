@@ -1,7 +1,10 @@
-//
-// Created by profanter on 13/12/2019.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOTICS_COMMON_RLGRIPPERIMPL_HPP
 #define ROBOTICS_COMMON_RLGRIPPERIMPL_HPP
@@ -38,9 +41,9 @@ namespace fortiss {
             public:
                 explicit RLGripperImpl(std::shared_ptr<spdlog::logger>  logger, rl::hal::Gripper *gripper, bool simulation) :
                         GraspReleaseGripperSkillImpl(),
-                        skillStartTime(), gripper(gripper),
+                        skillStartTime(),
                         logger(std::move(logger)),
-                        simulation(simulation) {
+                        simulation(simulation), gripper(gripper) {
 
                 }
 

@@ -1,6 +1,10 @@
-//
-// Created by breitkreuz on 28/02/19.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef PROJECT_FORCETORQUESENSOR_HPP
 #define PROJECT_FORCETORQUESENSOR_HPP

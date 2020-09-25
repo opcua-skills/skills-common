@@ -1,24 +1,38 @@
-//
-// Created by profanter on 21/05/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #include <common/client/robot/CartesianMoveSkillClient.h>
 
 #include <common/opcua/helper.hpp>
 
-CartesianMoveSkillClient::CartesianMoveSkillClient(const std::shared_ptr<spdlog::logger> &loggerParam,
-                                                   const std::string &serverURL,
-                                                   UA_UInt16 nsIdxDi, UA_UInt16 nsIdxRobFor,
-                                                   const UA_NodeId &skillNodeId, unsigned short axisCount,
-                                                   const std::string &username, const std::string &password) :
-        MoveSkillClient(loggerParam, serverURL, nsIdxDi, nsIdxRobFor, skillNodeId, username, password),
-        SkillClient(loggerParam, serverURL, nsIdxDi, skillNodeId, username, password),
+CartesianMoveSkillClient::CartesianMoveSkillClient(
+        const std::shared_ptr<spdlog::logger>& loggerApp,
+        const std::shared_ptr<spdlog::logger>& loggerOpcua,
+        const std::string& serverURL,
+        UA_UInt16 nsIdxDi,
+        UA_UInt16 nsIdxRobFor,
+        const UA_NodeId& skillNodeId,
+        unsigned short axisCount,
+        const std::string& username,
+        const std::string& password,
+        const std::string& clientCertPath,
+        const std::string& clientKeyPath,
+        const std::string& clientAppUri,
+        const std::string& clientAppName
+) :
+        SkillClient(loggerApp, loggerOpcua, serverURL, nsIdxDi, skillNodeId, username, password, clientCertPath, clientKeyPath, clientAppUri, clientAppName),
+        MoveSkillClient(loggerApp, loggerOpcua, serverURL, nsIdxDi, nsIdxRobFor, skillNodeId, username, password, clientCertPath, clientKeyPath, clientAppUri,
+                        clientAppName),
         axisCount(axisCount) {
     initParameter(&targetPositionParameter, "TargetPosition", UA_QUALIFIEDNAME(nsIdxRobFor,
-                                                                               const_cast<char *>("TargetPosition")));
+                                                                               const_cast<char*>("TargetPosition")));
     initParameter(&axisBoundsParameter, "AxisBounds", UA_QUALIFIEDNAME(nsIdxRobFor,
-                                                                       const_cast<char *>("AxisBounds")));
+                                                                       const_cast<char*>("AxisBounds")));
 }
 
 CartesianMoveSkillClient::~CartesianMoveSkillClient() {
@@ -30,7 +44,7 @@ CartesianMoveSkillClient::~CartesianMoveSkillClient() {
 }
 
 const UA_StatusCode
-CartesianMoveSkillClient::setTargetPosition(const UA_ThreeDFrame &targetCartesianPosition) {
+CartesianMoveSkillClient::setTargetPosition(const UA_ThreeDFrame& targetCartesianPosition) {
     if (targetPositionParameter == nullptr)
         return UA_STATUSCODE_BADNOTSUPPORTED;
 
@@ -65,7 +79,7 @@ CartesianMoveSkillClient::setAxisBounds(const UA_Range axisBounds[]) {
     }
 
     axisBoundsParameter->value.arrayDimensionsSize = 1;
-    axisBoundsParameter->value.arrayDimensions = (UA_UInt32 *)UA_Array_new(1, &UA_TYPES[UA_TYPES_UINT32]);
+    axisBoundsParameter->value.arrayDimensions = (UA_UInt32*) UA_Array_new(1, &UA_TYPES[UA_TYPES_UINT32]);
     axisBoundsParameter->value.arrayDimensions[0] = axisCount;
 
     return retval;

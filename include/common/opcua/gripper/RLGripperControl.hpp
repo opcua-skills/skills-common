@@ -1,7 +1,10 @@
-//
-// Created by profanter on 03/04/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOTICS_RLGRIPPERCONTROL_HPP
 #define ROBOTICS_RLGRIPPERCONTROL_HPP
@@ -9,6 +12,7 @@
 #include <rl/hal/Gripper.h>
 #include <common/opcua/skill/gripper/GraspReleaseGripperSkill.hpp>
 #include <libconfig.h++>
+#include <utility>
 #include "RLGripperGraspImpl.hpp"
 #include "RLGripperReleaseImpl.hpp"
 
@@ -18,15 +22,17 @@ namespace fortiss {
 
             class RlGripperControl {
             public:
-                explicit RlGripperControl(const std::shared_ptr<spdlog::logger> &_logger,
-                                          const libconfig::Setting &settings,
-                                          rl::hal::Gripper *gripperDevice,
-                                          UA_Server *server,
-                                          const UA_NodeId releaseSkillId,
-                                          const UA_NodeId graspSkillId) :
+                explicit RlGripperControl(
+                        std::shared_ptr<spdlog::logger>  _logger,
+                        const libconfig::Setting& settings,
+                        rl::hal::Gripper* gripperDevice,
+                        std::shared_ptr<fortiss::opcua::OpcUaServer> _server,
+                        const UA_NodeId releaseSkillId,
+                        const UA_NodeId graspSkillId
+                ) :
                         gripper(gripperDevice),
-                        server(server),
-                        logger(_logger),
+                        server(std::move(_server)),
+                        logger(std::move(_logger)),
                         simulation(settings["simulation"]),
                         releaseSkillId(releaseSkillId),
                         graspSkillId(graspSkillId) {
@@ -72,8 +78,8 @@ namespace fortiss {
 
             protected:
 
-                rl::hal::Gripper *gripper;
-                UA_Server* server;
+                rl::hal::Gripper* gripper;
+                const std::shared_ptr<fortiss::opcua::OpcUaServer> server;
                 std::shared_ptr<spdlog::logger> logger;
 
                 bool simulation;
@@ -99,7 +105,7 @@ namespace fortiss {
                              "ReleaseGripper Skill");
 
                     releaseImpl = std::make_shared<fortiss::RLGripperReleaseImpl>(logger,
-                                                                                 gripper, simulation);
+                                                                                  gripper, simulation);
                     releaseImpl->startMoveGripperCallback = [this]() {
                         if (startMoveGripperCallback)
                             return startMoveGripperCallback();
@@ -113,7 +119,7 @@ namespace fortiss {
                              graspSkillId,
                              "CloseGripper Skill");
                     graspImpl = std::make_shared<fortiss::RLGripperGraspImpl>(logger,
-                                                                          gripper, simulation);
+                                                                              gripper, simulation);
                     graspImpl->startMoveGripperCallback = [this]() {
                         if (startMoveGripperCallback)
                             return startMoveGripperCallback();

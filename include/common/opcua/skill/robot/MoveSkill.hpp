@@ -1,7 +1,10 @@
-//
-// Created by profanter on 14/05/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOTICS_COMMON_OPCUA_ROBOT_MOVESKILL_HPP
 #define ROBOTICS_COMMON_OPCUA_ROBOT_MOVESKILL_HPP
@@ -26,17 +29,17 @@ namespace fortiss {
 
                     const std::shared_ptr<UA_NodeId> parameterSetNodeId;
 
-                    SkillParameter<std::string> toolFrameParameter;
+                    SkillParameter <std::string> toolFrameParameter;
 
                     virtual UA_StatusCode readParameters() {
                         UA_StatusCode retVal = readParameter<std::string, UA_String>(
                                 toolFrameParameter,
-                                [this](const UA_String &x) {
+                                [this](const UA_String& x) {
                                     if (x.length == 0)
                                         this->toolFrameParameter.value = "";
                                     else
-                                        this->toolFrameParameter.value = std::string((char*)x.data, x.length);
-                        });
+                                        this->toolFrameParameter.value = std::string((char*) x.data, x.length);
+                                });
 
                         return retVal;
                     }
@@ -44,26 +47,28 @@ namespace fortiss {
 
                 public:
 
-                    explicit MoveSkill(UA_Server
-                                       *server,
-                                       std::shared_ptr<spdlog::logger> &logger,
-                                       const UA_NodeId &skillNodeId,
-                                       const std::string &eventSourceName) :
+                    explicit MoveSkill(
+                            const std::shared_ptr<fortiss::opcua::OpcUaServer>& server,
+                            std::shared_ptr<spdlog::logger>& logger,
+                            const UA_NodeId& skillNodeId,
+                            const std::string& eventSourceName
+                    ) :
                             SkillBase(server, logger, skillNodeId, eventSourceName),
                             nsDiIdx(UA_Server_getNamespaceIdByName(server, NAMESPACE_URI_DI)),
                             nsRobIdx(UA_Server_getNamespaceIdByName(server, NAMESPACE_URI_ROB)),
                             nsForRobIdx(UA_Server_getNamespaceIdByName(server, NAMESPACE_URI_FOR_ROB)),
                             parameterSetNodeId(UA_Server_getObjectComponentId(server, stateMachineNodeId,
                                                                               UA_QUALIFIEDNAME(static_cast<UA_UInt16>(nsDiIdx),
-                                                                                               const_cast<char *>("ParameterSet")))),
-                            toolFrameParameter(&UA_TYPES[UA_TYPES_STRING],"ToolFrame",
+                                                                                               const_cast<char*>("ParameterSet")))),
+                            toolFrameParameter(&UA_TYPES[UA_TYPES_STRING], "ToolFrame",
                                                UA_Server_getObjectComponentId(server, *parameterSetNodeId,
                                                                               UA_QUALIFIEDNAME(static_cast<UA_UInt16>(nsForRobIdx),
-                                                                                               const_cast<char *>("ToolFrame")))) {
+                                                                                               const_cast<char*>("ToolFrame")))) {
                         // use dynamic cast to make sure polymorphic resolution is correct
                         auto selfProgram = dynamic_cast<Program*>(this);
 
-                        if (UA_Server_setNodeContext(server, skillNodeId, selfProgram) != UA_STATUSCODE_GOOD) {
+                        LockedServer ls = server->getLocked();
+                        if (UA_Server_setNodeContext(ls.get(), skillNodeId, selfProgram) != UA_STATUSCODE_GOOD) {
                             throw std::runtime_error("Adding method context failed");
                         }
                     }

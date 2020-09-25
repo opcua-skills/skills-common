@@ -1,8 +1,10 @@
-//
-// Created by profanter on 13/08/2019.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
-
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #include <common/skill_detector/SkillDetector.h>
 
@@ -14,44 +16,173 @@
 #include <fortiss_device_nodeids.h>
 #include <di_nodeids.h>
 #include <common/opcua/helper.hpp>
+#include <random>
 
 #define NAMESPACE_URI_DI "http://opcfoundation.org/UA/DI/"
 #define NAMESPACE_URI_FORTISS_DEVICE "https://fortiss.org/UA/Device/"
 
-SkillDetector::SkillDetector(std::shared_ptr<spdlog::logger> _logger,
-                             const std::string&  clientCertPath,
-                             const std::string&  clientKeyPath,
-                             const std::string&  clientAppUri,
-                             const std::string&  clientAppName,
-                             std::chrono::milliseconds monitorOnlineInterval) :
-        logger(std::move(_logger)), clientCertPath(clientCertPath), clientKeyPath(clientKeyPath),
-        clientAppUri(clientAppUri), clientAppName(clientAppName), monitorOnlineInterval(monitorOnlineInterval),
-        registeredComponents() {
-
-    loggerClient = logger->clone(logger->name()+"-detector");
-    if (loggerClient->level() < spdlog::level::err)
-        loggerClient->set_level(spdlog::level::err);
+SkillDetector::SkillDetector(
+        std::shared_ptr<spdlog::logger> _loggerApp,
+        std::shared_ptr<spdlog::logger> _loggerOpcua,
+        std::string clientCertPath,
+        std::string clientKeyPath,
+        std::string clientAppUri,
+        std::string clientAppName,
+        std::chrono::milliseconds monitorOnlineInterval
+) :
+        registeredComponents(), logger(std::move(_loggerApp)), loggerOpcua(std::move(_loggerOpcua)), clientCertPath(std::move(clientCertPath)), clientKeyPath(std::move
+        (clientKeyPath)),
+        clientAppUri(std::move(clientAppUri)), clientAppName(std::move(clientAppName)), monitorOnlineInterval(monitorOnlineInterval) {
 }
 
 SkillDetector::~SkillDetector() {
-
+    this->registeredComponents.clear();
 }
 
 
-void SkillDetector::componentConnected(const std::shared_ptr<const UA_RegisteredServer>& registeredServer,
-                                       const std::shared_ptr<const UA_EndpointDescription>& endpoint) {
+void SkillDetector::onServerAnnounce(
+        const UA_ServerOnNetwork* serverOnNetwork,
+        UA_Boolean isServerAnnounce
+) {
+    // create a copy of registered server struct since it may be deleted while the thread is still running.
+    UA_ServerOnNetwork* serverOnNetworkTemp = UA_ServerOnNetwork_new();
+    UA_ServerOnNetwork_copy(serverOnNetwork, serverOnNetworkTemp);
+    std::shared_ptr<UA_ServerOnNetwork> serverOnNetworkSafe = std::shared_ptr<UA_ServerOnNetwork>(serverOnNetworkTemp, [=](UA_ServerOnNetwork* ptr) {
+        UA_ServerOnNetwork_delete(ptr);
+    });
 
-    std::string serverUri = std::string((char *) registeredServer->serverUri.data, registeredServer->serverUri.length);
+    // run in separate thread to not block main iteration
+    std::thread([this, serverOnNetworkSafe, isServerAnnounce]() {
+        std::string serverName = std::string((char*) serverOnNetworkSafe->serverName.data, serverOnNetworkSafe->serverName.length);
+
+        std::set<std::string> discoveryUrls = getDiscoveryUrls(serverOnNetworkSafe);
+
+        if (isServerAnnounce) {
+
+            bool startTimeMatches = false;
+            UA_DateTime newStartTime = 0;
+            std::shared_ptr<UA_EndpointDescription> endpoint;
+
+            {
+                std::lock_guard<std::mutex> lc(this->registeredMapMutex);
+                if (isServerRecentlyAnnounced(discoveryUrls, &startTimeMatches, &newStartTime, &endpoint)) {
+                    return;
+                }
+            }
+
+            // random wait between 1 and 2 seconds to not overload remote device
+            std::random_device rd;
+            std::mt19937 mt(rd());
+            std::uniform_int_distribution<int> uniform_dist(0, 1000);
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000 + uniform_dist(mt)));
+
+            std::lock_guard<std::mutex> lc(this->registeredMapMutex);
+            bool error;
+            if (isServerKnown(discoveryUrls, error, &startTimeMatches, &newStartTime, &endpoint)) {
+                if (startTimeMatches)
+                    return;
+                logger->info("Component {} restart detected. Removing previous register and detect new skills.", serverName);
+                removeServerKnown(discoveryUrls);
+                componentDisconnected(serverOnNetworkSafe);
+            }
+            if (error)
+                return;
+            if (!addServerKnown(discoveryUrls, newStartTime, &endpoint))
+                return;
+
+
+            logger->info("Got register from component: {}", serverName);
+
+            componentConnected(serverOnNetworkSafe, endpoint);
+
+        } else {
+
+            std::lock_guard<std::mutex> lc(this->registeredMapMutex);
+            bool error;
+            if (!isServerKnown(discoveryUrls, error)) {
+                return;
+            }
+
+
+            logger->info("Got unregister from component: {}", serverName);
+
+            removeServerKnown(discoveryUrls);
+            componentDisconnected(serverOnNetworkSafe);
+        }
+    }).detach();
+}
+
+
+void SkillDetector::onServerRegister(
+        const UA_RegisteredServer* registeredServer
+) {
+
+    // create a copy of registered server struct since it may be deleted while the thread is still running.
+    UA_RegisteredServer* registeredServerTmp = UA_RegisteredServer_new();
+    UA_RegisteredServer_copy(registeredServer, registeredServerTmp);
+    std::shared_ptr<UA_RegisteredServer> registeredServerSafe = std::shared_ptr<UA_RegisteredServer>(registeredServerTmp, [=](UA_RegisteredServer* ptr) {
+        UA_RegisteredServer_delete(ptr);
+    });
+
+
+    // run in separate thread to not block main iteration
+    std::thread([this, registeredServerSafe]() {
+        std::lock_guard<std::mutex> lc(this->registeredMapMutex);
+        std::string serverUri = std::string((char*) registeredServerSafe->serverUri.data, registeredServerSafe->serverUri.length);
+
+        std::set<std::string> discoveryUrls = getDiscoveryUrls(registeredServerSafe);
+
+        if (registeredServerSafe->isOnline) {
+
+            bool startTimeMatches = false;
+            UA_DateTime newStartTime = 0;
+            std::shared_ptr<UA_EndpointDescription> endpoint;
+            bool error;
+            if (isServerKnown(discoveryUrls, error, &startTimeMatches, &newStartTime, &endpoint)) {
+                if (startTimeMatches)
+                    return;
+                logger->info("Component {} restart detected. Removing previous register and detect new skills.", serverUri);
+                removeServerKnown(discoveryUrls);
+                componentDisconnected(registeredServerSafe);
+            }
+            if (error)
+                return;
+            if (!addServerKnown(discoveryUrls, newStartTime, &endpoint))
+                return;
+
+            logger->info("Got register from component: {}", serverUri);
+            componentConnected(registeredServerSafe, endpoint);
+
+        } else {
+            bool error;
+            if (!isServerKnown(discoveryUrls, error)) {
+                return;
+            }
+
+            logger->info("Got unregister from component: {}", serverUri);
+
+            removeServerKnown(discoveryUrls);
+            componentDisconnected(registeredServerSafe);
+        }
+    }).detach();
+}
+
+void SkillDetector::componentConnected(
+        const std::shared_ptr<const UA_RegisteredServer>& registeredServer,
+        const std::shared_ptr<const UA_EndpointDescription>& endpoint
+) {
+
+    std::string serverUri = std::string((char*) registeredServer->serverUri.data, registeredServer->serverUri.length);
 
     auto it = registeredComponents.find(serverUri);
     if (it != registeredComponents.end())
         // already known component-> Ignore
         return;
 
-    std::string endpointUrl = std::string((char *) endpoint->endpointUrl.data, endpoint->endpointUrl.length);
+    std::string endpointUrl = std::string((char*) endpoint->endpointUrl.data, endpoint->endpointUrl.length);
     if (endpointUrl.length() == 0)
         return;
-    if (endpointUrl.at(endpointUrl.size()-1) != '/')
+    if (endpointUrl.at(endpointUrl.size() - 1) != '/')
         endpointUrl += '/';
     for (const auto& component : registeredComponents) {
         if (component.second->endpointUrl == endpointUrl) {
@@ -59,8 +190,8 @@ void SkillDetector::componentConnected(const std::shared_ptr<const UA_Registered
         }
     }
 
-    std::shared_ptr<RegisteredComponent> data = std::make_shared<struct RegisteredComponent>(
-            loggerClient, endpoint, endpointUrl, clientCertPath, clientKeyPath, clientAppUri, clientAppName);
+    std::shared_ptr<RegisteredComponent> data = std::make_shared<RegisteredComponent>(
+            logger, loggerOpcua, endpoint, endpointUrl, clientCertPath, clientKeyPath, clientAppUri, clientAppName);
 
     this->registeredComponents.emplace(serverUri, data);
 
@@ -70,11 +201,13 @@ void SkillDetector::componentConnected(const std::shared_ptr<const UA_Registered
 
 }
 
-void SkillDetector::componentConnected(const std::shared_ptr<const UA_ServerOnNetwork>& serverOnNetwork,
-                                       const std::shared_ptr<const UA_EndpointDescription>& endpoint) {
+void SkillDetector::componentConnected(
+        const std::shared_ptr<const UA_ServerOnNetwork>& serverOnNetwork,
+        const std::shared_ptr<const UA_EndpointDescription>& endpoint
+) {
 
-    std::string serverName = std::string((char *) serverOnNetwork->serverName.data, serverOnNetwork->serverName.length);
-    std::string serverUrl = std::string((char *) serverOnNetwork->discoveryUrl.data, serverOnNetwork->discoveryUrl.length);
+    std::string serverName = std::string((char*) serverOnNetwork->serverName.data, serverOnNetwork->serverName.length);
+    std::string serverUrl = std::string((char*) serverOnNetwork->discoveryUrl.data, serverOnNetwork->discoveryUrl.length);
 
     std::string serverId = serverName + "-" + serverUrl;
 
@@ -82,10 +215,10 @@ void SkillDetector::componentConnected(const std::shared_ptr<const UA_ServerOnNe
     if (it != registeredComponents.end())
         // already known component-> Ignore
         return;
-    std::string endpointUrl = std::string((char *) endpoint->endpointUrl.data, endpoint->endpointUrl.length);
+    std::string endpointUrl = std::string((char*) endpoint->endpointUrl.data, endpoint->endpointUrl.length);
     if (endpointUrl.length() == 0)
         return;
-    if (endpointUrl.at(endpointUrl.size()-1) != '/')
+    if (endpointUrl.at(endpointUrl.size() - 1) != '/')
         endpointUrl += '/';
     for (const auto& component : registeredComponents) {
         if (component.second->endpointUrl == endpointUrl) {
@@ -93,8 +226,8 @@ void SkillDetector::componentConnected(const std::shared_ptr<const UA_ServerOnNe
         }
     }
 
-    std::shared_ptr<RegisteredComponent> data = std::make_shared<struct RegisteredComponent>(
-            loggerClient, endpoint, endpointUrl, clientCertPath, clientKeyPath, clientAppUri, clientAppName);
+    std::shared_ptr<RegisteredComponent> data = std::make_shared<RegisteredComponent>(
+            logger, loggerOpcua, endpoint, endpointUrl, clientCertPath, clientKeyPath, clientAppUri, clientAppName);
 
     this->registeredComponents.emplace(serverId, data);
 
@@ -105,7 +238,7 @@ void SkillDetector::componentConnected(const std::shared_ptr<const UA_ServerOnNe
 }
 
 void SkillDetector::componentDisconnected(const std::shared_ptr<const UA_RegisteredServer>& registeredServer) {
-    std::string serverUri = std::string((char *) registeredServer->serverUri.data, registeredServer->serverUri.length);
+    std::string serverUri = std::string((char*) registeredServer->serverUri.data, registeredServer->serverUri.length);
     auto it = registeredComponents.find(serverUri);
     if (it == registeredComponents.end())
         // Component not known. Ignore
@@ -119,8 +252,8 @@ void SkillDetector::componentDisconnected(const std::shared_ptr<const UA_Registe
 
 
 void SkillDetector::componentDisconnected(const std::shared_ptr<const UA_ServerOnNetwork>& serverOnNetwork) {
-    std::string serverName = std::string((char *) serverOnNetwork->serverName.data, serverOnNetwork->serverName.length);
-    std::string serverUrl = std::string((char *) serverOnNetwork->discoveryUrl.data, serverOnNetwork->discoveryUrl.length);
+    std::string serverName = std::string((char*) serverOnNetwork->serverName.data, serverOnNetwork->serverName.length);
+    std::string serverUrl = std::string((char*) serverOnNetwork->discoveryUrl.data, serverOnNetwork->discoveryUrl.length);
 
     std::string serverId = serverName + "-" + serverUrl;
 
@@ -135,7 +268,10 @@ void SkillDetector::componentDisconnected(const std::shared_ptr<const UA_ServerO
     registeredComponents.erase(serverId);
 }
 
-bool SkillDetector::addSkillsFromComponent(const std::string& serverUri, std::shared_ptr<RegisteredComponent>& component) {
+bool SkillDetector::addSkillsFromComponent(
+        const std::string& serverUri,
+        std::shared_ptr<RegisteredComponent>& component
+) {
 
     if (!component->connectClient())
         return false;
@@ -201,17 +337,17 @@ bool SkillDetector::addSkillsFromComponent(const std::string& serverUri, std::sh
     return true;
 }
 
-bool SkillDetector::removeSkillsFromComponent(const std::string& serverUri, const std::shared_ptr<RegisteredComponent>& component) {
+bool SkillDetector::removeSkillsFromComponent(
+        const std::string& serverUri,
+        const std::shared_ptr<RegisteredComponent>& component
+) {
 
     auto it = registeredSkills.cbegin();
-    while (it != registeredSkills.cend())
-    {
-        if (it->second->getParentComponent() == component)
-        {
+    while (it != registeredSkills.cend()) {
+        if (it->second->getParentComponent() == component) {
             logger->info("Remove unregistered skill: {}", it->second->getSkillNameStr());
             it = registeredSkills.erase(it);
-        }
-        else {
+        } else {
             ++it;
         }
     }
@@ -220,10 +356,10 @@ bool SkillDetector::removeSkillsFromComponent(const std::string& serverUri, cons
 }
 
 
-
 bool SkillDetector::findAllSkillControllerNodes(
         std::shared_ptr<RegisteredComponent>& component,
-        std::vector<std::shared_ptr<UA_NodeId>> &controllerIds) {
+        std::vector<std::shared_ptr<UA_NodeId>>& controllerIds
+) {
 
     UA_NodeId deviceSetId = UA_NODEID_NUMERIC(component->nsDiIdx, UA_DIID_DEVICESET);
     UA_NodeId skillControllerType = UA_NODEID_NUMERIC(component->nsFortissDiIdx, UA_FORTISS_DEVICEID_ISKILLCONTROLLERTYPE);
@@ -243,16 +379,17 @@ bool SkillDetector::findAllSkillControllerNodes(
 
 bool SkillDetector::addSkillsFromController(
         std::shared_ptr<RegisteredComponent>& component,
-        const std::shared_ptr<UA_NodeId>& controllerId) {
+        const std::shared_ptr<UA_NodeId>& controllerId
+) {
 
     // find "Skills" node
     UA_NodeId skillsId;
     bool found;
     {
         LockedClient lc = component->getLockedClient();
-        found = fortiss::opcua::UA_Client_findChildWithBrowseName(lc.get(), logger, *controllerId.get(),
+        found = fortiss::opcua::UA_Client_findChildWithBrowseName(lc.get(), logger, *controllerId,
                                                                   UA_QUALIFIEDNAME(component->nsFortissDiIdx,
-                                                                                   const_cast<char *>("Skills")),
+                                                                                   const_cast<char*>("Skills")),
                                                                   &skillsId);
     }
 
@@ -285,7 +422,7 @@ bool SkillDetector::addSkillsFromController(
     } else {
         for (size_t i = 0; i < bResp.resultsSize; ++i) {
             for (size_t j = 0; j < bResp.results[i].referencesSize; ++j) {
-                UA_ReferenceDescription *ref = &(bResp.results[i].references[j]);
+                UA_ReferenceDescription* ref = &(bResp.results[i].references[j]);
 
                 UA_NodeId hasComponentId = UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT);
                 if (!UA_NodeId_equal(&ref->referenceTypeId, &hasComponentId)) {
@@ -310,7 +447,7 @@ bool SkillDetector::addSkillsFromController(
 std::shared_ptr<RegisteredComponent> SkillDetector::getComponentForEndpoint(const std::string& endpointUrl) {
     std::string endpointFull = endpointUrl;
 
-    if (endpointFull.size() > 0 && endpointFull.at(endpointFull.size()-1) != '/')
+    if (!endpointFull.empty() && endpointFull.at(endpointFull.size() - 1) != '/')
         endpointFull += '/';
 
     for (const auto& component : registeredComponents) {
@@ -324,7 +461,10 @@ std::shared_ptr<RegisteredComponent> SkillDetector::getComponentForEndpoint(cons
 }
 
 
-std::vector<std::shared_ptr<RegisteredSkill>> SkillDetector::getSkillForEndpoint(const std::string& endpointUrl, const std::string& skillType) {
+std::vector<std::shared_ptr<RegisteredSkill>> SkillDetector::getSkillForEndpoint(
+        const std::string& endpointUrl,
+        const std::string& skillType
+) {
     std::vector<std::shared_ptr<RegisteredSkill>> skills;
 
     std::shared_ptr<RegisteredComponent> registeredComponent = getComponentForEndpoint(endpointUrl);
@@ -344,13 +484,29 @@ std::vector<std::shared_ptr<RegisteredSkill>> SkillDetector::getSkillForEndpoint
 
 }
 
+std::shared_ptr<RegisteredSkill> SkillDetector::getSkillForEndpointAndBrowseName(
+        const std::string& endpointUrl,
+        const std::string& skillBrowseName
+) {
+    std::shared_ptr<RegisteredComponent> registeredComponent = getComponentForEndpoint(endpointUrl);
+    if (!registeredComponent)
+        return nullptr;
+
+    for (const auto& skill : registeredComponent->skills) {
+        if (skill->getSkillNameStr() == skillBrowseName) {
+            return skill;
+        }
+    }
+    return nullptr;
+}
+
 
 std::vector<std::shared_ptr<RegisteredComponent>> SkillDetector::getComponentForAppUri(const std::string& appUri) {
     std::vector<std::shared_ptr<RegisteredComponent>> components;
 
     UA_String str = {
             .length = appUri.size(),
-            .data = (UA_Byte*)const_cast<char*>(appUri.c_str())
+            .data = (UA_Byte*) const_cast<char*>(appUri.c_str())
     };
     for (const auto& component : registeredComponents) {
 
@@ -367,7 +523,7 @@ std::vector<std::shared_ptr<RegisteredComponent>> SkillDetector::getComponentFor
 
     UA_String str = {
             .length = appName.size(),
-            .data = (UA_Byte*)const_cast<char*>(appName.c_str())
+            .data = (UA_Byte*) const_cast<char*>(appName.c_str())
     };
     for (const auto& component : registeredComponents) {
 
@@ -377,4 +533,225 @@ std::vector<std::shared_ptr<RegisteredComponent>> SkillDetector::getComponentFor
     }
 
     return components;
+}
+
+std::shared_ptr<UA_EndpointDescription> SkillDetector::findAvailableEndpoint(
+        const std::set<std::string>& discoveryUrls
+) {
+
+    if (discoveryUrls.empty()) {
+        return nullptr;
+    }
+
+
+    std::promise<std::shared_ptr<UA_EndpointDescription>> promiseEndpoint;
+    fortiss::opcua::getBestEndpointFromServer(discoveryUrls, promiseEndpoint, loggerOpcua);
+    std::future<std::shared_ptr<UA_EndpointDescription>> endpointFuture = promiseEndpoint.get_future();
+
+    std::future_status status = endpointFuture.wait_for(std::chrono::seconds(8));
+
+    if (status == std::future_status::ready) {
+        return endpointFuture.get();
+    }
+    return nullptr;
+}
+
+bool SkillDetector::addServerKnown(
+        const std::set<std::string>& discoveryUrls,
+        UA_DateTime startTime,
+        std::shared_ptr<UA_EndpointDescription>* endpoint
+) {
+
+    for (const auto& url : discoveryUrls) {
+        if (registeredMap.count(url) != 0) {
+            return false;
+        }
+    }
+
+    std::shared_ptr<ServerKnownData> data = std::make_shared<ServerKnownData>();
+
+    std::shared_ptr<UA_EndpointDescription> endpointFound;
+    if (!*endpoint) {
+        endpointFound = findAvailableEndpoint(discoveryUrls);
+        if (!endpointFound) {
+            std::string urls;
+            for (const auto& url : discoveryUrls) {
+                if (!urls.empty())
+                    urls += ", ";
+                urls += url;
+            }
+            logger->error("Did not find any endpoint for discovery URLs: {}", urls);
+            return false;
+        }
+        *endpoint = endpointFound;
+    }
+    else
+        endpointFound = *endpoint;
+
+    std::string endpointUrl = std::string((char*)endpointFound->endpointUrl.data, endpointFound->endpointUrl.length);
+    if (endpointUrl.empty())
+        return false;
+
+    endpointUrl = endpointUrl[endpointUrl.length() - 1] == '/' ? endpointUrl : endpointUrl + "/";
+
+    if (startTime == 0) {
+        UA_StatusCode retval = fortiss::opcua::UA_Client_getStartTime(
+                logger,
+                loggerOpcua,
+                clientCertPath,
+                clientKeyPath,
+                clientAppUri,
+                clientAppName,
+                endpointFound,
+                &startTime
+        );
+        if (retval != UA_STATUSCODE_GOOD) {
+            logger->error("Could not get StartTime from {}", endpointUrl, UA_StatusCode_name(retval));
+            return false;
+        }
+    }
+
+    data->lastAnnounce = std::chrono::steady_clock::now();
+    data->startTime = startTime;
+    data->endpoint = endpointFound;
+
+    registeredMap.emplace(endpointUrl, data);
+    return true;
+}
+
+bool SkillDetector::isServerRecentlyAnnounced(
+        const std::set<std::string>& discoveryUrls,
+        bool* startTimeMatches,
+        UA_DateTime* currentStartTime,
+        std::shared_ptr<UA_EndpointDescription>* endpointReturn
+) {
+    if (discoveryUrls.empty())
+        return false;
+
+    bool known = false;
+
+    std::shared_ptr<ServerKnownData> data;
+
+    for (const auto& url : discoveryUrls) {
+        if (registeredMap.count(url) > 0) {
+            data = registeredMap.at(url);
+            known = true;
+            break;
+        }
+    }
+
+    if (!known)
+        return false;
+
+    if ((data->lastAnnounce > std::chrono::time_point<std::chrono::steady_clock>::min()) &&
+        (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - data->lastAnnounce).count() < 1000)) {
+        // it could be the case that during startup the server announces itself multiple times.
+        // To avoid that we make multiple requests during startup, ignore additional announces within 5 seconds and assume it is the same server
+        if (startTimeMatches != nullptr)
+            *startTimeMatches = true;
+        if (currentStartTime != nullptr)
+            *currentStartTime = data->startTime;
+        if (endpointReturn != nullptr)
+            *endpointReturn = data->endpoint;
+        return true;
+    }
+
+    return false;
+}
+
+bool SkillDetector::isServerKnown(
+        const std::set<std::string>& discoveryUrls,
+        bool &error,
+        bool* startTimeMatches,
+        UA_DateTime* currentStartTime,
+        std::shared_ptr<UA_EndpointDescription>* endpointReturn
+) {
+    error = false;
+    if (isServerRecentlyAnnounced(
+            discoveryUrls,
+            startTimeMatches,
+            currentStartTime,
+            endpointReturn)) {
+        return true;
+    }
+
+    std::shared_ptr<UA_EndpointDescription> endpoint;
+    if (endpointReturn == nullptr || *endpointReturn == nullptr)
+        endpoint = findAvailableEndpoint(discoveryUrls);
+    else
+        endpoint = *endpointReturn;
+    if (!endpoint) {
+        std::string urls;
+        for (const auto& url : discoveryUrls) {
+            if (!urls.empty())
+                urls += ", ";
+            urls += url;
+        }
+        logger->error("Did not find any endpoint for discovery URLs: {}", urls);
+        error = true;
+        return false;
+    }
+
+    UA_DateTime startTime;
+    UA_StatusCode retval = fortiss::opcua::UA_Client_getStartTime(
+            logger,
+            loggerOpcua,
+            clientCertPath,
+            clientKeyPath,
+            clientAppUri,
+            clientAppName,
+            endpoint,
+            &startTime
+    );
+    if (retval != UA_STATUSCODE_GOOD) {
+        logger->error("Could not get StartTime from {}", std::string((char*) endpoint->endpointUrl.data, endpoint->endpointUrl.length), UA_StatusCode_name
+                (retval));
+        error = true;
+        return false;
+    }
+
+    if (startTimeMatches != nullptr)
+        *startTimeMatches = startTime == *currentStartTime;
+
+    if (currentStartTime != nullptr)
+        *currentStartTime = startTime;
+
+    if (endpointReturn != nullptr)
+        *endpointReturn = endpoint;
+    return true;
+}
+
+void SkillDetector::removeServerKnown(
+        const std::set<std::string>& discoveryUrls
+) {
+    for (const auto& url : discoveryUrls) {
+        if (registeredMap.count(url) > 0) {
+            registeredMap.erase(url);
+            break;
+        }
+    }
+}
+
+std::set<std::string> SkillDetector::getDiscoveryUrls(const std::shared_ptr<UA_RegisteredServer>& registeredServer) {
+    std::set<std::string> discoveryUrls;
+    for (size_t i = 0; i < registeredServer->discoveryUrlsSize; i++) {
+        const std::string url = std::string((char*) registeredServer->discoveryUrls[i].data, registeredServer->discoveryUrls[i].length);
+        if (url.empty())
+            continue;
+        const std::string urlWithSlash = url[url.length() - 1] == '/' ? url : url + "/";
+        discoveryUrls.emplace(urlWithSlash);
+    }
+    return discoveryUrls;
+}
+
+std::set<std::string> SkillDetector::getDiscoveryUrls(const std::shared_ptr<UA_ServerOnNetwork>& serverOnNetwork) {
+    std::set<std::string> discoveryUrls;
+    std::string discoveryUrl = std::string((char*) serverOnNetwork->discoveryUrl.data, serverOnNetwork->discoveryUrl.length);
+    if (discoveryUrl.empty())
+        return discoveryUrls;
+    if (discoveryUrl.at(discoveryUrl.size() - 1) != '/')
+        discoveryUrl += '/';
+
+    discoveryUrls.emplace(discoveryUrl);
+    return discoveryUrls;
 }

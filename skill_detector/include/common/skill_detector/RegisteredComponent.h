@@ -1,7 +1,10 @@
-//
-// Created by profanter on 05/09/2019.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOTICS_COMMON_REGISTEREDCOMPONENT_H
 #define ROBOTICS_COMMON_REGISTEREDCOMPONENT_H
@@ -26,6 +29,7 @@ class RegisteredComponent {
 public:
     explicit RegisteredComponent(
             std::shared_ptr<spdlog::logger> _logger,
+            std::shared_ptr<spdlog::logger> _loggerOpcua,
             std::shared_ptr<const UA_EndpointDescription> endpoint,
             std::string endpointUrl,
             const std::string&  clientCertPath,
@@ -42,7 +46,8 @@ public:
             clientAppUri(clientAppUri),
             clientAppName(clientAppName),
             client(nullptr),
-            logger(std::move(_logger)) {
+            logger(std::move(_logger)),
+            loggerOpcua(std::move(_loggerOpcua)) {
     };
 
     virtual ~RegisteredComponent();
@@ -65,6 +70,7 @@ public:
 
     bool connectClient();
     void disconnectClient();
+    bool ensureConnected();
 
     UA_StatusCode getWorldToRobotTransform(rl::math::Transform *transform);
 private:
@@ -77,6 +83,7 @@ private:
     MutexedClient client;
     UA_Client* clientUnsafe = nullptr;
     std::shared_ptr<spdlog::logger> logger;
+    std::shared_ptr<spdlog::logger> loggerOpcua;
     std::thread monitorOnlineThread;
     bool monitorThreadRunning = false;
     UA_UInt32 monId = 0;

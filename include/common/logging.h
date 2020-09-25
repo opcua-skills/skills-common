@@ -1,7 +1,10 @@
-//
-// Created by profanter on 11/29/18.
-// Copyright (c) 2018 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOTICS_LOGGING_H
 #define ROBOTICS_LOGGING_H
@@ -35,7 +38,7 @@ namespace fortiss {
                 {
                     size_t pos=0;
                     std::string dir;
-                    int mdret;
+                    int mdret = -1;
 
                     if(s[s.size()-1]!='/'){
                         // force trailing / so we can handle everything in loop
@@ -52,8 +55,34 @@ namespace fortiss {
                     return mdret;
                 }
 
+                static bool setLoggerLevel(
+                        std::shared_ptr<spdlog::logger>& logger,
+                        const ::std::string &logLevel) {
+                    if (logLevel == "trace")
+                        logger->set_level(spdlog::level::level_enum::trace);
+                    else if (logLevel == "debug")
+                        logger->set_level(spdlog::level::level_enum::debug);
+                    else if (logLevel == "info" || logLevel.empty())
+                        logger->set_level(spdlog::level::level_enum::info);
+                    else if (logLevel == "warn")
+                        logger->set_level(spdlog::level::level_enum::warn);
+                    else if (logLevel == "err" || logLevel == "error")
+                        logger->set_level(spdlog::level::level_enum::err);
+                    else if (logLevel == "critical")
+                        logger->set_level(spdlog::level::level_enum::critical);
+                    else if (logLevel == "off")
+                        logger->set_level(spdlog::level::level_enum::off);
+                    else {
+                        fprintf(stderr, "Invalid 'loglevel' setting in configuration file. Must be one of [trace, debug, info, warn, err, critical, off]\n");
+                        return false;
+                    }
+                    return true;
+                }
 
-                static std::shared_ptr<spdlog::logger> createLogger(const ::std::string &loggerName, const ::std::string &logFilePath = "") {
+                static std::shared_ptr<spdlog::logger> createLogger(
+                        const ::std::string &loggerName,
+                        const ::std::string &logLevelStr = "",
+                        const ::std::string &logFilePath = "") {
 
                     std::string logPath = "";
                     if (!logFilePath.empty()) {
@@ -81,7 +110,8 @@ namespace fortiss {
                     if (!logPath.empty())
                         sinks.push_back( std::make_shared<spdlog::sinks::basic_file_sink_mt>(logPath) );
                     auto console_multisink = std::make_shared<spdlog::logger>(loggerName, sinks.begin(), sinks.end());
-                    console_multisink->set_level(spdlog::level::info);
+                    if (!setLoggerLevel(console_multisink, logLevelStr))
+                        return nullptr;
                     sinks[0]->set_level(spdlog::level::trace);  // console. Allow everything.  Default value
                     if (!logPath.empty())
                         sinks[1]->set_level( spdlog::level::trace);  //  regular file. Allow everything.  Default value

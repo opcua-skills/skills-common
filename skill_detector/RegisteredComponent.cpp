@@ -1,7 +1,10 @@
-//
-// Created by profanter on 05/09/2019.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #include <common/skill_detector/RegisteredComponent.h>
 #include <open62541/client_subscriptions.h>
@@ -128,7 +131,13 @@ bool RegisteredComponent::checkOnline(std::chrono::milliseconds checkInterval) {
 
     LockedClient lc = this->getLockedClient();
 
-    if (UA_Client_getState(lc.get()) == UA_CLIENTSTATE_DISCONNECTED) {
+
+    UA_SecureChannelState channelState;
+    UA_SessionState sessionState;
+    UA_StatusCode connectStatus;
+    UA_Client_getState(lc.get(), &channelState, &sessionState, &connectStatus);
+
+    if (channelState == UA_SECURECHANNELSTATE_CLOSED) {
         return false;
     }
     UA_StatusCode retVal;
@@ -140,6 +149,34 @@ bool RegisteredComponent::checkOnline(std::chrono::milliseconds checkInterval) {
 
     double diff = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lastTimeUpdate).count();
     return diff < checkInterval.count() * 1.5;
+}
+
+bool RegisteredComponent::ensureConnected() {
+
+    LockedClient lc = this->getLockedClient();
+
+    UA_SecureChannelState channelState;
+    UA_SessionState sessionState;
+    UA_StatusCode connectStatus;
+    UA_Client_getState(lc.get(), &channelState, &sessionState, &connectStatus);
+    if (sessionState >= UA_SESSIONSTATE_ACTIVATED) {
+        UA_Client_run_iterate(lc.get(), 5);
+        UA_Client_getState(lc.get(), &channelState, &sessionState, &connectStatus);
+        if (sessionState >= UA_SESSIONSTATE_ACTIVATED) {
+            return true;
+        }
+    }
+
+    logger->info("Client lost connecion. Trying to reconnect...");
+
+
+    UA_StatusCode retval = UA_Client_connect(lc.get(), endpointUrl.c_str());
+    if (retval != UA_STATUSCODE_GOOD) {
+        logger->error("Can not connect to {}. Error {}", endpointUrl.c_str(), UA_StatusCode_name(retval));
+        return false;
+    }
+
+    return true;
 }
 
 void RegisteredComponent::disconnectClient() {
@@ -157,7 +194,7 @@ bool RegisteredComponent::connectClient() {
 
     clientUnsafe = fortiss::opcua::UA_Helper_getClientForEndpoint(
             endpoint.get(),
-            logger,
+            loggerOpcua,
             clientCertPath,
             clientKeyPath,
             clientAppUri,
@@ -183,6 +220,10 @@ UA_StatusCode RegisteredComponent::getWorldToRobotTransform(rl::math::Transform 
     if (worldToRobotTransform) {
         *transform = *worldToRobotTransform;
         return UA_STATUSCODE_GOOD;
+    }
+
+    if (!ensureConnected()) {
+        return UA_STATUSCODE_BADNOTCONNECTED;
     }
 
     UA_Variant worldToRobotVar;

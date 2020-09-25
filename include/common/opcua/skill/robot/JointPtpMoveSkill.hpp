@@ -1,7 +1,10 @@
-//
-// Created by profanter on 14/05/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOTICS_COMMON_OPCUA_ROBOT_JOINTPTPMOVESKILL_HPP
 #define ROBOTICS_COMMON_OPCUA_ROBOT_JOINTPTPMOVESKILL_HPP
@@ -24,10 +27,12 @@ namespace fortiss {
                     friend class JointPtpMoveSkill<AXIS_COUNT>;
 
                 protected:
-                    virtual bool start(const std::array<double, AXIS_COUNT> &targetJointPosition,
-                                       const std::string &toolFrame,
-                                       const std::array<double, AXIS_COUNT> &maxVelocity,
-                                       const std::array<double, AXIS_COUNT> &maxAcceleration) = 0;
+                    virtual bool start(
+                            const std::array<double, AXIS_COUNT>& targetJointPosition,
+                            const std::string& toolFrame,
+                            const std::array<double, AXIS_COUNT>& maxVelocity,
+                            const std::array<double, AXIS_COUNT>& maxAcceleration
+                    ) = 0;
 
                     virtual bool halt() = 0;
 
@@ -56,11 +61,12 @@ namespace fortiss {
                     }
 
                 public:
-                    explicit JointPtpMoveSkill(UA_Server
-                                               *server,
-                                               std::shared_ptr<spdlog::logger> &logger,
-                                               const UA_NodeId &skillNodeId,
-                                               const std::string &eventSourceName) :
+                    explicit JointPtpMoveSkill(
+                            const std::shared_ptr<fortiss::opcua::OpcUaServer>& server,
+                            std::shared_ptr<spdlog::logger>& logger,
+                            const UA_NodeId& skillNodeId,
+                            const std::string& eventSourceName
+                    ) :
                             SkillBase(server, logger, skillNodeId, eventSourceName),
                             MoveSkill(server, logger, skillNodeId, eventSourceName),
                             PtpMoveSkill<AXIS_COUNT>(server, logger, skillNodeId, eventSourceName),
@@ -69,7 +75,10 @@ namespace fortiss {
                     }
 
 
-                    virtual void setImpl(JointPtpMoveSkillImpl<AXIS_COUNT> *impl, std::function<void()> implDeleter) {
+                    virtual void setImpl(
+                            JointPtpMoveSkillImpl<AXIS_COUNT>* impl,
+                            std::function<void()> implDeleter
+                    ) {
                         SkillBase::setImpl(impl, implDeleter);
 
                         this->startCallback = [impl, this]() {

@@ -1,7 +1,10 @@
-//
-// Created by profanter on 21/05/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #include <common/client/robot/MoveSkillClient.h>
 
@@ -14,12 +17,23 @@
 #include <common/opcua/helper.hpp>
 
 
-MoveSkillClient::MoveSkillClient(const std::shared_ptr<spdlog::logger> &loggerParam, const std::string &serverURL,
-                                 UA_UInt16 nsIdxDi, UA_UInt16 nsIdxRobFor, const UA_NodeId &skillNodeId,
-                                 const std::string &username, const std::string &password) :
-        SkillClient(loggerParam, serverURL, nsIdxDi, skillNodeId, username, password) {
+MoveSkillClient::MoveSkillClient(
+        const std::shared_ptr<spdlog::logger>& loggerApp,
+        const std::shared_ptr<spdlog::logger>& loggerOpcua,
+        const std::string& serverURL,
+        UA_UInt16 nsIdxDi,
+        UA_UInt16 nsIdxRobFor,
+        const UA_NodeId& skillNodeId,
+        const std::string& username,
+        const std::string& password,
+        const std::string& clientCertPath,
+        const std::string& clientKeyPath,
+        const std::string& clientAppUri,
+        const std::string& clientAppName
+) :
+        SkillClient(loggerApp, loggerOpcua, serverURL, nsIdxDi, skillNodeId, username, password, clientCertPath, clientKeyPath, clientAppUri, clientAppName) {
 
-    initParameter(&toolFrameParameter, "ToolFrame", UA_QUALIFIEDNAME(nsIdxRobFor, const_cast<char *>("ToolFrame")));
+    initParameter(&toolFrameParameter, "ToolFrame", UA_QUALIFIEDNAME(nsIdxRobFor, const_cast<char*>("ToolFrame")));
 }
 
 MoveSkillClient::~MoveSkillClient() {
@@ -28,7 +42,7 @@ MoveSkillClient::~MoveSkillClient() {
 }
 
 const UA_StatusCode
-MoveSkillClient::setToolFrame(const std::string &toolFrame) {
+MoveSkillClient::setToolFrame(const std::string& toolFrame) {
 
     if (toolFrameParameter == nullptr)
         return UA_STATUSCODE_BADNOTSUPPORTED;
@@ -37,7 +51,7 @@ MoveSkillClient::setToolFrame(const std::string &toolFrame) {
 
     const UA_String val = {
             toolFrame.length(),
-            (UA_Byte*)const_cast<char*>(toolFrame.c_str())
+            (UA_Byte*) const_cast<char*>(toolFrame.c_str())
     };
 
     UA_StatusCode retval = UA_Variant_setScalarCopy(&toolFrameParameter->value, &val,

@@ -17,7 +17,11 @@ add_executable(test_all_headers test_headers.cpp)
 target_link_libraries(test_all_headers
                       open62541::open62541)
 
-add_dependencies(test_all_headers component-common-client component-common-skill-detector)
+add_dependencies(test_all_headers
+                 ${PROJECT_NAME}
+                 ${PROJECT_NAME}-nodeset
+                 open62541::open62541
+                 )
 
 target_include_directories(test_all_headers PRIVATE
                            include

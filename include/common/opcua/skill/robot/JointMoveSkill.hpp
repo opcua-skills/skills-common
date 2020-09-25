@@ -1,7 +1,10 @@
-//
-// Created by profanter on 14/05/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOTICS_COMMON_OPCUA_ROBOT_JOINTMOVESKILL_HPP
 #define ROBOTICS_COMMON_OPCUA_ROBOT_JOINTMOVESKILL_HPP
@@ -19,7 +22,7 @@ namespace fortiss {
 
                 protected:
 
-                    SkillParameter<std::array<double, AXIS_COUNT>> targetJointPositionParameter;
+                    SkillParameter <std::array<double, AXIS_COUNT>> targetJointPositionParameter;
 
                     virtual UA_StatusCode readParameters() override {
                         UA_StatusCode ret = MoveSkill::readParameters();
@@ -29,7 +32,10 @@ namespace fortiss {
 
                         ret = readParameter<std::array<double, AXIS_COUNT>, double, AXIS_COUNT>(
                                 targetJointPositionParameter,
-                                [this](const double &x, size_t idx) {
+                                [this](
+                                        const double& x,
+                                        size_t idx
+                                ) {
                                     targetJointPositionParameter.value[idx] = x;
                                 });
                         return ret;
@@ -37,18 +43,19 @@ namespace fortiss {
 
                 public:
 
-                    explicit JointMoveSkill(UA_Server
-                                            *server,
-                                            std::shared_ptr<spdlog::logger> &logger,
-                                            const UA_NodeId &skillNodeId,
-                                            const std::string &eventSourceName) :
+                    explicit JointMoveSkill(
+                            const std::shared_ptr<fortiss::opcua::OpcUaServer>& server,
+                            std::shared_ptr<spdlog::logger>& logger,
+                            const UA_NodeId& skillNodeId,
+                            const std::string& eventSourceName
+                    ) :
                             SkillBase(server, logger, skillNodeId, eventSourceName),
                             MoveSkill(server, logger, skillNodeId, eventSourceName),
                             targetJointPositionParameter(&UA_TYPES[UA_TYPES_DOUBLE], "TargetJointPosition",
-                                                UA_Server_getObjectComponentId(server, *parameterSetNodeId,
-                                                                               UA_QUALIFIEDNAME(
-                                                                                       static_cast<UA_UInt16>(nsForRobIdx),
-                                                                                       const_cast<char *>("TargetJointPosition")))) {
+                                                         UA_Server_getObjectComponentId(server, *parameterSetNodeId,
+                                                                                        UA_QUALIFIEDNAME(
+                                                                                                static_cast<UA_UInt16>(nsForRobIdx),
+                                                                                                const_cast<char*>("TargetJointPosition")))) {
                     }
 
                 };

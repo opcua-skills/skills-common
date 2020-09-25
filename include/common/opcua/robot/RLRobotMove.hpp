@@ -1,7 +1,10 @@
-//
-// Created by profanter on 17/05/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOTICS_RLROBOTMOVE_HPP
 #define ROBOTICS_RLROBOTMOVE_HPP
@@ -17,6 +20,7 @@
 #include <rl/hal/Coach.h>
 #include <rl/mdl/XmlFactory.h>
 #include <libconfig.h++>
+#include <utility>
 
 typedef UA_Frame UA_Frame;
 
@@ -27,14 +31,14 @@ namespace fortiss {
             class RlRobotMove {
 
             private:
-                UA_Server *uaServer;
+                const std::shared_ptr<fortiss::opcua::OpcUaServer> uaServer;
 
                 std::shared_ptr<spdlog::logger> logger;
 
-                RlRobotDevice *robotDevice = nullptr;
-                std::thread *progDeviceThread = nullptr;
+                RlRobotDevice* robotDevice = nullptr;
+                std::thread* progDeviceThread = nullptr;
                 std::exception_ptr runException;
-                rl::hal::CyclicDevice *coachDevice = nullptr;
+                rl::hal::CyclicDevice* coachDevice = nullptr;
 
                 rl::math::Transform toolOffset;
 
@@ -43,9 +47,9 @@ namespace fortiss {
                 bool connected = false;
 
                 bool simulation = false;
-                const libconfig::Setting &settings;
+                const libconfig::Setting& settings;
 
-                void initRl(rl::hal::CyclicDevice *device) {
+                void initRl(rl::hal::CyclicDevice* device) {
 
                     // Create another instance of the kinematic to be thread safe
                     rl::mdl::XmlFactory mdlFactory;
@@ -66,12 +70,14 @@ namespace fortiss {
                 }
 
             public:
-                explicit RlRobotMove(const std::shared_ptr<spdlog::logger> &_logger,
-                                     const libconfig::Setting &robotSettings,
-                                     rl::hal::CyclicDevice *robotDevice,
-                                     UA_Server *uaServer) :
-                        uaServer(uaServer),
-                        logger(_logger),
+                explicit RlRobotMove(
+                        std::shared_ptr<spdlog::logger>  _logger,
+                        const libconfig::Setting& robotSettings,
+                        rl::hal::CyclicDevice* robotDevice,
+                        std::shared_ptr<fortiss::opcua::OpcUaServer>  uaServer
+                ) :
+                        uaServer(std::move(uaServer)),
+                        logger(std::move(_logger)),
                         runException(nullptr),
                         toolOffset(rl::math::Transform::Identity()),
                         stepMutex(),
@@ -114,7 +120,7 @@ namespace fortiss {
                     progDeviceThread = new std::thread([this](void) {
                         try {
                             robotDevice->run();
-                        } catch (const rl::hal::Exception &rlex) {
+                        } catch (const rl::hal::Exception& rlex) {
                             runException = std::current_exception();
                         }
                     });
@@ -125,7 +131,7 @@ namespace fortiss {
 
 
                 const ::rl::math::Vector getJointPosition() {
-                    ::rl::hal::JointPositionSensor *positionSensor = dynamic_cast< ::rl::hal::JointPositionSensor *>(robotDevice->getDevice());
+                    ::rl::hal::JointPositionSensor* positionSensor = dynamic_cast< ::rl::hal::JointPositionSensor*>(robotDevice->getDevice());
                     rl::math::Vector currentPos;
                     stepMutex.lock();
                     currentPos = positionSensor->getJointPosition();
@@ -135,13 +141,13 @@ namespace fortiss {
 
 
                 void setJointPosition(const ::rl::math::Vector& pos) {
-                    ::rl::hal::JointPositionActuator *positionActuator = dynamic_cast< ::rl::hal::JointPositionActuator *>(robotDevice->getDevice());
+                    ::rl::hal::JointPositionActuator* positionActuator = dynamic_cast< ::rl::hal::JointPositionActuator*>(robotDevice->getDevice());
                     stepMutex.lock();
                     positionActuator->setJointPosition(pos);
                     stepMutex.unlock();
                 }
 
-                void setToolOffset(const rl::math::Transform &offset) {
+                void setToolOffset(const rl::math::Transform& offset) {
                     toolOffset = offset;
                 }
 
@@ -153,7 +159,7 @@ namespace fortiss {
                     return connected;
                 }
 
-                rl::hal::CyclicDevice *getRobot() {
+                rl::hal::CyclicDevice* getRobot() {
                     return robotDevice->getDevice();
                 }
 

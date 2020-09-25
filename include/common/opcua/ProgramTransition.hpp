@@ -1,3 +1,11 @@
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
+
 #include <utility>
 
 #include <utility>
@@ -31,16 +39,20 @@ namespace fortiss {
 
         class ProgramTransition {
         public:
-            explicit ProgramTransition(const ProgramTransitionNumber number, std::shared_ptr<UA_NodeId> id,
-                                       const UA_LocalizedText name,
-                                       ProgramStateNumber from, ProgramStateNumber to) : number(number),
-                                                                                         id(std::move(id)),
-                                                                                         name(name),
-                                                                                         from(from), to(to) {};
+            explicit ProgramTransition(
+                    const ProgramTransitionNumber number,
+                    std::shared_ptr<UA_NodeId> id,
+                    const UA_LocalizedText name,
+                    ProgramStateNumber from,
+                    ProgramStateNumber to
+            ) : number(number),
+                id(std::move(id)),
+                name(name),
+                from(from), to(to) {};
 
             const UA_LocalizedText getName() const { return name; };
 
-            const UA_NodeId *getId() const { return id.get(); };
+            const UA_NodeId* getId() const { return id.get(); };
 
             const ProgramTransitionNumber getNumber() const { return number; };
 

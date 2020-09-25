@@ -1,7 +1,10 @@
-//
-// Created by profanter on 17/05/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOTICS_SKILLS_SKILLIMPL_HPP
 #define ROBOTICS_SKILLS_SKILLIMPL_HPP
@@ -20,7 +23,7 @@ namespace fortiss {
                 std::vector<SkillRunMutex*> runMutex;
 
             public:
-                explicit SkillImpl(): runMutex() {
+                explicit SkillImpl() : runMutex() {
 
                 }
 

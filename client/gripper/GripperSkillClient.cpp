@@ -1,7 +1,10 @@
-//
-// Created by profanter on 12/20/18.
-// Copyright (c) 2018 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #include <memory>
 #include <exception>
@@ -13,9 +16,14 @@
 #include <open62541/plugin/log_stdout.h>
 
 
-GripperSkillClient::GripperSkillClient(const std::shared_ptr<spdlog::logger> &loggerParam, const std::string &serverURL,
-                                         UA_UInt16 nsIdxDi, const UA_NodeId &skillNodeId) :
-        SkillClient(loggerParam, serverURL, nsIdxDi, skillNodeId, "", "", false) {
+GripperSkillClient::GripperSkillClient(
+        const std::shared_ptr<spdlog::logger>& loggerApp,
+        const std::shared_ptr<spdlog::logger>& loggerOpcua,
+        const std::string& serverURL,
+        UA_UInt16 nsIdxDi,
+        const UA_NodeId& skillNodeId
+) :
+        SkillClient(loggerApp, loggerOpcua, serverURL, nsIdxDi, skillNodeId, "", "", false) {
 
 }
 

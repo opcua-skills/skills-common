@@ -1,7 +1,10 @@
-//
-// Created by profanter on 17/05/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOT_LINEARINTERPOLATOR_HPP
 #define ROBOT_LINEARINTERPOLATOR_HPP
@@ -108,17 +111,17 @@ namespace fortiss {
                     std::cout << "q1 = " << this->q1.transpose() << std::endl;
                     std::cout << "x0 = " << x0.translation().x() << " m, y = " << x0.translation().y() << " m, z = "
                               << x0.translation().z() << " m, a = "
-                              << x0.rotation().eulerAngles(2, 1, 0).reverse().x() * rl::math::RAD2DEG
-                              << " deg, b = " << x0.rotation().eulerAngles(2, 1, 0).reverse().y() * rl::math::RAD2DEG
+                              << x0.rotation().eulerAngles(2, 1, 0).reverse().x() * rl::math::constants::rad2deg
+                              << " deg, b = " << x0.rotation().eulerAngles(2, 1, 0).reverse().y() * rl::math::constants::rad2deg
                               << " deg, c = "
-                              << x0.rotation().eulerAngles(2, 1, 0).reverse().z() * rl::math::RAD2DEG << " deg"
+                              << x0.rotation().eulerAngles(2, 1, 0).reverse().z() * rl::math::constants::rad2deg << " deg"
                               << std::endl;
                     std::cout << "x1 = " << x1.translation().x() << " m, y = " << x1.translation().y() << " m, z = "
                               << x1.translation().z() << " m, a = "
-                              << x1.rotation().eulerAngles(2, 1, 0).reverse().x() * rl::math::RAD2DEG
-                              << " deg, b = " << x1.rotation().eulerAngles(2, 1, 0).reverse().y() * rl::math::RAD2DEG
+                              << x1.rotation().eulerAngles(2, 1, 0).reverse().x() * rl::math::constants::rad2deg
+                              << " deg, b = " << x1.rotation().eulerAngles(2, 1, 0).reverse().y() * rl::math::constants::rad2deg
                               << " deg, c = "
-                              << x1.rotation().eulerAngles(2, 1, 0).reverse().z() * rl::math::RAD2DEG << " deg"
+                              << x1.rotation().eulerAngles(2, 1, 0).reverse().z() * rl::math::constants::rad2deg << " deg"
                               << std::endl;*/
 
                     ::rl::math::Vector qi0 = this->q0;
@@ -199,7 +202,7 @@ namespace fortiss {
                     *qi1 = qi0 + dq;
 
                     if (!kinematicRunner->isValid(*qi1)) {
-                        std::cout << "ERROR: joint limits exceeded with " << qi1->transpose() * rl::math::RAD2DEG
+                        std::cout << "ERROR: joint limits exceeded with " << qi1->transpose() * rl::math::constants::rad2deg
                                   << std::endl;
                         return false;
                     }

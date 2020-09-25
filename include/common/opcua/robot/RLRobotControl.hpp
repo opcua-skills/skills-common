@@ -1,3 +1,11 @@
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
+
 #include <utility>
 
 //
@@ -77,7 +85,7 @@ namespace fortiss {
                 explicit RlRobotControl(const std::shared_ptr<spdlog::logger> &_logger,
                                         const libconfig::Setting &robotSettings,
                                         rl::hal::CyclicDevice *robotDevice,
-                                        UA_Server *uaServer,
+                                        const std::shared_ptr<fortiss::opcua::OpcUaServer>& uaServer,
                                         const UA_NodeId controllerNodeId,
                                         const UA_NodeId skillsNodeId,
                                         bool robotSupportsToolOffset = false,
@@ -193,7 +201,7 @@ namespace fortiss {
 
             protected:
 
-                UA_Server *uaServer;
+                const std::shared_ptr<fortiss::opcua::OpcUaServer> uaServer;
 
                 std::shared_ptr<spdlog::logger> logger;
 
@@ -406,7 +414,7 @@ namespace fortiss {
                 static rl::math::Transform getWorldToRobotTransform(
                         const std::shared_ptr<spdlog::logger> &logger,
                         const libconfig::Setting &robotSettings,
-                        UA_Server *uaServer,
+                        const std::shared_ptr<fortiss::opcua::OpcUaServer>& uaServer,
                         const UA_NodeId controllerNodeId) {
                     if (robotSettings.exists("world_to_robot_transform")) {
                         UA_ThreeDFrame worldToRobotFrame = {
@@ -447,10 +455,13 @@ namespace fortiss {
                         UA_Variant var;
                         UA_Variant_init(&var);
                         UA_Variant_setScalar(&var, &worldToRobotFrame, &UA_TYPES[UA_TYPES_THREEDFRAME]);
-                        UA_StatusCode retval = UA_Server_writeValue(uaServer, *worldToRobotBaseId, var);
-                        if (retval != UA_STATUSCODE_GOOD) {
-                            logger->error("Writing to WorldToRobotBase Node failed with: {}", UA_StatusCode_name(retval));
-                            throw std::runtime_error("Writing to WorldToRobotBase Node failed");
+                        {
+                            LockedServer ls = uaServer->getLocked();
+                            UA_StatusCode retval = UA_Server_writeValue(ls.get(), *worldToRobotBaseId, var);
+                            if (retval != UA_STATUSCODE_GOOD) {
+                                logger->error("Writing to WorldToRobotBase Node failed with: {}", UA_StatusCode_name(retval));
+                                throw std::runtime_error("Writing to WorldToRobotBase Node failed");
+                            }
                         }
 
                         rl::math::Transform worldToRobot;

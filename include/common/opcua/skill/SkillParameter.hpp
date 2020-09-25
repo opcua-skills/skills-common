@@ -1,3 +1,11 @@
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
+
 #include <utility>
 
 //
@@ -22,9 +30,12 @@ namespace fortiss {
                 const std::string name;
                 const std::shared_ptr<UA_NodeId> nodeId;
 
-                explicit SkillParameter(const UA_DataType* type, std::string name, const std::shared_ptr<UA_NodeId> nodeId):
-                    value(), type(type), name(std::move(name)), nodeId(nodeId)
-                {
+                explicit SkillParameter(
+                        const UA_DataType* type,
+                        std::string name,
+                        const std::shared_ptr<UA_NodeId> nodeId
+                ) :
+                        value(), type(type), name(std::move(name)), nodeId(nodeId) {
                 }
             };
         }

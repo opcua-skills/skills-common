@@ -8,6 +8,22 @@ else()
     project(component-common)
 endif()
 
+# We need to have at least GCC8 or Clang 7.
+# Somehow older versions, especially GCC has some C++14 issues which cause ConnectionClosed errors while trying to execute skills
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    # require at least gcc 4.8
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8)
+        message(WARNING "GCC version should be at least 8!")
+    endif()
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    # require at least clang 3.2
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7)
+        message(WARNING "Clang version should be at least 7!")
+    endif()
+else()
+    message(WARNING "You are using an unsupported compiler! Compilation has only been tested with Clang and GCC.")
+endif()
+
 find_package(open62541 1.0 REQUIRED COMPONENTS FullNamespace Events Encryption)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -26,24 +42,41 @@ if(BUILD_TYPE_LOWER_CASE STREQUAL "debug")
         # Add default sanitizer settings when using clang and Debug build.
         # This allows e.g. CLion to find memory locations for SegFaults
         message(STATUS "Clang Sanitizer enabled")
-        set(SANITIZER_FLAGS "-g -fno-omit-frame-pointer -gline-tables-only -fsanitize=address -fsanitize-address-use-after-scope -fsanitize-coverage=trace-pc-guard,trace-cmp -fsanitize=leak -fsanitize=undefined" PARENT_SCOPE)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SANITIZER_FLAGS}" PARENT_SCOPE)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SANITIZER_FLAGS}" PARENT_SCOPE)
+        set(SANITIZER_FLAGS "-g -fno-omit-frame-pointer -gline-tables-only -fsanitize=address -fsanitize-address-use-after-scope -fsanitize-coverage=trace-pc-guard,trace-cmp -fsanitize=leak -fsanitize=undefined")
+        if (hasParent)
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SANITIZER_FLAGS}" PARENT_SCOPE)
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SANITIZER_FLAGS}" PARENT_SCOPE)
+        else()
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SANITIZER_FLAGS}")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SANITIZER_FLAGS}")
+        endif()
     endif()
 endif()
-
-find_package(open62541 1.0 REQUIRED COMPONENTS Events Encryption)
 
 find_package(rl 0.7.0 REQUIRED COMPONENTS math hal mdl)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_LIST_DIR}/cmake)
 
-add_library(${PROJECT_NAME} INTERFACE)
-target_include_directories(${PROJECT_NAME} INTERFACE include)
+add_library(${PROJECT_NAME} OBJECT
+            server/OpcUaServer.cpp
+            include/common/opcua/server/OpcUaServer.h
+            server/DeviceVariable.cpp
+            include/common/opcua/server/DeviceVariable.h
+)
 add_subdirectory(nodeset)
 add_subdirectory(client)
 add_subdirectory(skill_detector)
 
+target_include_directories(${PROJECT_NAME} PUBLIC
+                           include
+                           deps/spdlog/include
+                           $<TARGET_PROPERTY:open62541::open62541,INTERFACE_INCLUDE_DIRECTORIES>
+                           $<TARGET_PROPERTY:${PROJECT_NAME}-nodeset,INTERFACE_INCLUDE_DIRECTORIES>
+                           )
+add_dependencies(${PROJECT_NAME}
+                 ${PROJECT_NAME}-nodeset
+                 open62541::open62541
+                 )
 
 function(generate_certificate)
     set(options  )

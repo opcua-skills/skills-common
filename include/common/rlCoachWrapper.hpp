@@ -1,7 +1,10 @@
-//
-// Created by profanter on 27/01/2020.
-// Copyright (c) 2020 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef SEMANTIC_MES_RLCOACHWRAPPER_H
 #define SEMANTIC_MES_RLCOACHWRAPPER_H
@@ -9,6 +12,8 @@
 #include <rl/hal/Socket.h>
 #include <rl/hal/CyclicDevice.h>
 #include <rl/mdl/Transform.h>
+#include <thread>
+#include <mutex>
 
 class rlCoachWrapper : public rl::hal::CyclicDevice {
 public:
@@ -23,10 +28,14 @@ public:
 
     }
 
-    virtual ~rlCoachWrapper() = default;
+    virtual ~rlCoachWrapper() {
+        stop();
+        close();
+    };
 
     void close() {
-        this->socket.close();
+        if (this->socket.isConnected())
+            this->socket.close();
         this->setConnected(false);
     }
 
@@ -54,13 +63,14 @@ public:
     }
 
     void stop() {
-        if (running) {
-            running = false;
+        if (!running)
+            return;
 
-        }
+        running = false;
         this->out.clear();
         this->out.str("");
         this->setRunning(false);
+        runner.join();
     }
 
     void runThreaded() {
