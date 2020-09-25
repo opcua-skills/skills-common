@@ -1,7 +1,10 @@
-//
-// Created by profanter on 14/05/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOTICS_COMMON_OPCUA_ROBOT_CARTESIANLINEARMOVESKILL_HPP
 #define ROBOTICS_COMMON_OPCUA_ROBOT_CARTESIANLINEARMOVESKILL_HPP
@@ -27,11 +30,13 @@ namespace fortiss {
                     friend class CartesianLinearMoveSkill<AXIS_COUNT>;
 
                 protected:
-                    virtual bool start(const UA_ThreeDFrame &targetPosition,
-                                       const std::string &toolFrame,
-                                       const std::array<double, 6> &maxVelocity,
-                                       const std::array<double, 6> &maxAcceleration,
-                                       const std::array<UA_Range, AXIS_COUNT> &axisBounds) = 0;
+                    virtual bool start(
+                            const UA_ThreeDFrame& targetPosition,
+                            const std::string& toolFrame,
+                            const std::array<double, 6>& maxVelocity,
+                            const std::array<double, 6>& maxAcceleration,
+                            const std::array<UA_Range, AXIS_COUNT>& axisBounds
+                    ) = 0;
 
                     virtual bool halt() = 0;
 
@@ -60,10 +65,12 @@ namespace fortiss {
                     }
 
                 public:
-                    explicit CartesianLinearMoveSkill(UA_Server *server,
-                                                      std::shared_ptr<spdlog::logger> &logger,
-                                                      const UA_NodeId &skillNodeId,
-                                                      const std::string &eventSourceName) :
+                    explicit CartesianLinearMoveSkill(
+                            const std::shared_ptr<fortiss::opcua::OpcUaServer>& server,
+                            std::shared_ptr<spdlog::logger>& logger,
+                            const UA_NodeId& skillNodeId,
+                            const std::string& eventSourceName
+                    ) :
                             SkillBase(server, logger, skillNodeId, eventSourceName),
                             MoveSkill(server, logger, skillNodeId, eventSourceName),
                             LinearMoveSkill(server, logger, skillNodeId, eventSourceName),
@@ -71,7 +78,10 @@ namespace fortiss {
                     }
 
 
-                    virtual void setImpl(CartesianLinearMoveSkillImpl<AXIS_COUNT> *impl, std::function<void()> implDeleter) {
+                    virtual void setImpl(
+                            CartesianLinearMoveSkillImpl<AXIS_COUNT>* impl,
+                            std::function<void()> implDeleter
+                    ) {
                         SkillBase::setImpl(impl, implDeleter);
 
                         this->startCallback = [impl, this]() {

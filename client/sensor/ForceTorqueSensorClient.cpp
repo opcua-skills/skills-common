@@ -1,8 +1,15 @@
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
+
 #include <utility>
 
 //
 // Created by breitkreuz on 5/03/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
 //
 
 #include <mutex>
@@ -14,12 +21,12 @@
 
 #include <common/client/sensor/ForceTorqueSensorClient.h>
 
-ForceTorqueSensorClient::ForceTorqueSensorClient(std::shared_ptr<spdlog::logger> logger,
+ForceTorqueSensorClient::ForceTorqueSensorClient(std::shared_ptr<spdlog::logger> _logger,
                                                  const std::string &serverURL, UA_UInt16 nsIdxForRobDevice,
-                                                 const UA_NodeId &sensorNodeId) : logger(std::move(logger)) {
-    client = std::shared_ptr<UA_Client>(UA_Client_new(), [=](UA_Client *client) {
-        UA_Client_disconnect(client);
-        UA_Client_delete(client);
+                                                 const UA_NodeId &sensorNodeId) : logger(std::move(_logger)) {
+    client = std::shared_ptr<UA_Client>(UA_Client_new(), [=](UA_Client *_client) {
+        UA_Client_disconnect(_client);
+        UA_Client_delete(_client);
     });
 
     UA_ClientConfig *clientConfig = UA_Client_getConfig(client.get());
@@ -73,8 +80,8 @@ void ForceTorqueSensorClient::initializeNodeIds(const UA_NodeId &sensorNodeId, U
     UA_NodeId tmpForce{};
     UA_NodeId tmpTorque{};
 
-    for (int i = 0; i < response.resultsSize && !(forceFound && torqueFound); i++) {
-        for (int j = 0; j < response.results[i].referencesSize; j++) {
+    for (size_t i = 0; i < response.resultsSize && !(forceFound && torqueFound); i++) {
+        for (size_t j = 0; j < response.results[i].referencesSize; j++) {
             auto &&tmpName = &response.results[i].references[j].browseName;
             if (UA_QualifiedName_equal(tmpName, &forceName)) {
                 UA_NodeId_copy(&response.results[i].references[j].nodeId.nodeId, &tmpForce);

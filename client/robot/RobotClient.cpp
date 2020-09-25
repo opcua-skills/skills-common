@@ -1,7 +1,10 @@
-//
-// Created by profanter on 12/20/18.
-// Copyright (c) 2018 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #include <common/client/robot/RobotClient.h>
 
@@ -25,35 +28,43 @@
 
 //#include "MovePositionForceSkillClient.h"
 
-RobotClient::RobotClient(std::shared_ptr<spdlog::logger> loggerParam, const std::string &serverURL,
-        const std::string &username, const std::string &password) :
-        logger(std::move(loggerParam)), clientMutex(), serverURL(serverURL) {
+RobotClient::RobotClient(
+        std::shared_ptr<spdlog::logger> _loggerApp,
+        std::shared_ptr<spdlog::logger> _loggerOpcua,
+        const std::string& serverURL,
+        const std::string& username,
+        const std::string& password,
+        const std::string& clientCertPath,
+        const std::string& clientKeyPath,
+        const std::string& clientAppUri,
+        const std::string& clientAppName
+) :
+        logger(std::move(_loggerApp)), loggerOpcua(std::move(_loggerOpcua)), clientMutex(), serverURL(serverURL),
+        clientCertPath(clientCertPath), clientKeyPath(clientKeyPath), clientAppUri(clientAppUri), clientAppName(clientAppName){
 
+    UA_EndpointDescription* description = fortiss::opcua::getEndpointWithHighestSecurity(serverURL.c_str(), logger);
 
-    client = std::shared_ptr<UA_Client>(UA_Client_new(), [=](UA_Client *client) {
+    UA_Client* clientTmp = fortiss::opcua::UA_Helper_getClientForEndpoint(
+            description,
+            loggerOpcua,
+            clientCertPath,
+            clientKeyPath,
+            clientAppUri,
+            clientAppName,
+            username,
+            password
+    );
+    if (!clientTmp)
+        throw std::runtime_error("Cannot connect robot client");
+
+    client = std::shared_ptr<UA_Client>(clientTmp, [=](UA_Client* client) {
         UA_Client_disconnect(client);
         UA_Client_delete(client);
     });
-    UA_ClientConfig *clientConfig = UA_Client_getConfig(client.get());
-    UA_ClientConfig_setDefault(clientConfig);
-    clientConfig->logger.log = fortiss::log::opcua::UA_Log_Spdlog_log;
-    clientConfig->logger.context = logger.get();
-    clientConfig->logger.clear = fortiss::log::opcua::UA_Log_Spdlog_clear;
+    UA_EndpointDescription_delete(description);
 
 
-    UA_StatusCode retval;
-    if (username.empty()) {
-        if (!password.empty()) {
-            logger->warn("Password provided but no user. Attempting to connect without login...");
-        } else {
-            logger->info("Attempting to connect without login...");
-        }
-        retval = UA_Client_connect(client.get(), serverURL.c_str());
-    } else {
-        logger->info("Attempting to connect with username: {}", username);
-        retval = UA_Client_connect_username(client.get(), serverURL.c_str(), username.c_str(), password.c_str());
-    }
-
+    UA_StatusCode retval = UA_Client_connect(client.get(), serverURL.c_str());
     if (retval != UA_STATUSCODE_GOOD) {
         throw std::runtime_error("Can not connect to server " + serverURL + ". Error: " + UA_StatusCode_name(retval));
     } else {
@@ -64,26 +75,31 @@ RobotClient::RobotClient(std::shared_ptr<spdlog::logger> loggerParam, const std:
         throw std::runtime_error("Can not initialize node ids");
     }
 
-    cartesianLinearMoveSkillClient = new CartesianLinearMoveSkillClient(logger, serverURL, nsIdxDi, nsIdxRobFor, cartesianLinearMoveSkillId,
-                                        (unsigned short) axesCount, username, password);
+    cartesianLinearMoveSkillClient = new CartesianLinearMoveSkillClient(logger, loggerOpcua, serverURL, nsIdxDi, nsIdxRobFor, cartesianLinearMoveSkillId,
+                                                                        (unsigned short) axesCount, username, password, clientCertPath, clientKeyPath,
+                                                                        clientAppUri, clientAppName);
     cartesianLinearMoveSkillClient->disconnect();
-    cartesianPtpMoveSkillClient = new CartesianPtpMoveSkillClient(logger, serverURL, nsIdxDi, nsIdxRobFor, cartesianPtpMoveSkillId,
-                                                                  (unsigned short) axesCount, username, password);
+    cartesianPtpMoveSkillClient = new CartesianPtpMoveSkillClient(logger, loggerOpcua, serverURL, nsIdxDi, nsIdxRobFor, cartesianPtpMoveSkillId,
+                                                                  (unsigned short) axesCount, username, password, clientCertPath, clientKeyPath,
+                                                                  clientAppUri, clientAppName);
     cartesianPtpMoveSkillClient->disconnect();
-    
-    jointLinearMoveSkillClient = new JointLinearMoveSkillClient(logger, serverURL, nsIdxDi, nsIdxRobFor, jointLinearMoveSkillId,
-                                        (unsigned short) axesCount, username, password);
+
+    jointLinearMoveSkillClient = new JointLinearMoveSkillClient(logger, loggerOpcua, serverURL, nsIdxDi, nsIdxRobFor, jointLinearMoveSkillId,
+                                                                (unsigned short) axesCount, username, password, clientCertPath, clientKeyPath,
+                                                                clientAppUri, clientAppName);
     jointLinearMoveSkillClient->disconnect();
-    jointPtpMoveSkillClient = new JointPtpMoveSkillClient(logger, serverURL, nsIdxDi, nsIdxRobFor, jointPtpMoveSkillId,
-                                        (unsigned short) axesCount, username, password);
+    jointPtpMoveSkillClient = new JointPtpMoveSkillClient(logger, loggerOpcua, serverURL, nsIdxDi, nsIdxRobFor, jointPtpMoveSkillId,
+                                                          (unsigned short) axesCount, username, password, clientCertPath, clientKeyPath,
+                                                          clientAppUri, clientAppName);
     jointPtpMoveSkillClient->disconnect();
 
     // This skill is optional
     if (!UA_NodeId_isNull(&cartesianLinearForceMoveSkillId)) {
         cartesianLinearForceMoveSkillClient =
-                new CartesianLinearForceMoveSkillClient(logger, serverURL, nsIdxDi, nsIdxRobFor,
+                new CartesianLinearForceMoveSkillClient(logger, loggerOpcua, serverURL, nsIdxDi, nsIdxRobFor,
                                                         cartesianLinearForceMoveSkillId, (unsigned short) axesCount,
-                                                        username, password);
+                                                        username, password, clientCertPath, clientKeyPath,
+                                                        clientAppUri, clientAppName);
     }
 
     //axisSkill->reset();
@@ -169,7 +185,7 @@ UA_StatusCode RobotClient::initializeNodeIds() {
 
     found = fortiss::opcua::UA_Client_findChildWithBrowseName(client.get(), logger, motionSystemId,
                                                               UA_QUALIFIEDNAME(nsIdxRob,
-                                                                               const_cast<char *>("MotionDevices")),
+                                                                               const_cast<char*>("MotionDevices")),
                                                               &motionDevicesId);
     if (!found) {
         if (!UA_NodeId_isNull(&motionDevicesId)) {
@@ -196,7 +212,7 @@ UA_StatusCode RobotClient::initializeNodeIds() {
 
     found = fortiss::opcua::UA_Client_findChildWithBrowseName(client.get(), logger, motionDeviceId,
                                                               UA_QUALIFIEDNAME(nsIdxRobFor,
-                                                                               const_cast<char *>("FlangeToolClear")),
+                                                                               const_cast<char*>("FlangeToolClear")),
                                                               &flangeToolClearMethodId);
     if (!found) {
         if (!UA_NodeId_isNull(&flangeToolClearMethodId)) {
@@ -209,7 +225,7 @@ UA_StatusCode RobotClient::initializeNodeIds() {
 
     found = fortiss::opcua::UA_Client_findChildWithBrowseName(client.get(), logger, motionDeviceId,
                                                               UA_QUALIFIEDNAME(nsIdxRobFor,
-                                                                               const_cast<char *>("FlangeToolSet")),
+                                                                               const_cast<char*>("FlangeToolSet")),
                                                               &flangeToolSetMethodId);
     if (!found) {
         if (!UA_NodeId_isNull(&flangeToolSetMethodId)) {
@@ -221,7 +237,7 @@ UA_StatusCode RobotClient::initializeNodeIds() {
     }
 
     found = fortiss::opcua::UA_Client_findChildWithBrowseName(client.get(), logger, motionDeviceId,
-                                                              UA_QUALIFIEDNAME(nsIdxRob, const_cast<char *>("Axes")),
+                                                              UA_QUALIFIEDNAME(nsIdxRob, const_cast<char*>("Axes")),
                                                               &axesId);
     if (!found) {
         if (!UA_NodeId_isNull(&axesId)) {
@@ -233,7 +249,7 @@ UA_StatusCode RobotClient::initializeNodeIds() {
     }
 
     found = fortiss::opcua::UA_Client_findChildWithName(client.get(), logger, motionDeviceId,
-                                                        UA_STRING(const_cast<char *>("Led")),
+                                                        UA_STRING(const_cast<char*>("Led")),
                                                         &ledId);
     if (!found) {
         if (!UA_NodeId_isNull(&ledId)) {
@@ -255,7 +271,7 @@ UA_StatusCode RobotClient::initializeNodeIds() {
 
     found = fortiss::opcua::UA_Client_findChildWithBrowseName(client.get(), logger, motionSystemId,
                                                               UA_QUALIFIEDNAME(nsIdxRob,
-                                                                               const_cast<char *>("Controllers")),
+                                                                               const_cast<char*>("Controllers")),
                                                               &controllersId);
     if (!found) {
         if (!UA_NodeId_isNull(&controllersId)) {
@@ -283,7 +299,7 @@ UA_StatusCode RobotClient::initializeNodeIds() {
 
     found = fortiss::opcua::UA_Client_findChildWithBrowseName(client.get(), logger, controllerId,
                                                               UA_QUALIFIEDNAME(nsIdxDeviceFor,
-                                                                               const_cast<char *>("Skills")),
+                                                                               const_cast<char*>("Skills")),
                                                               &skillsId);
     if (!found) {
         if (!UA_NodeId_isNull(&skillsId)) {
@@ -294,10 +310,10 @@ UA_StatusCode RobotClient::initializeNodeIds() {
         return UA_STATUSCODE_BADNOTFOUND;
     }
 
-    
+
     found = fortiss::opcua::UA_Client_findChildOfType(client.get(), logger, skillsId,
-                                                              UA_NODEID_NUMERIC(nsIdxRobFor, UA_FOR_ROBID_CARTESIANLINEARMOVESKILLTYPE),
-                                                              &cartesianLinearMoveSkillId);
+                                                      UA_NODEID_NUMERIC(nsIdxRobFor, UA_FOR_ROBID_CARTESIANLINEARMOVESKILLTYPE),
+                                                      &cartesianLinearMoveSkillId);
     if (!found) {
         if (!UA_NodeId_isNull(&cartesianLinearMoveSkillId)) {
             logger->error("There are multiple 'CartesianLinearMoveSkill' nodes on the server. This is currently not supported.");
@@ -306,11 +322,11 @@ UA_StatusCode RobotClient::initializeNodeIds() {
         }
         return UA_STATUSCODE_BADNOTFOUND;
     }
-    
-    
+
+
     found = fortiss::opcua::UA_Client_findChildOfType(client.get(), logger, skillsId,
-                                                              UA_NODEID_NUMERIC(nsIdxRobFor, UA_FOR_ROBID_CARTESIANPTPMOVESKILLTYPE),
-                                                              &cartesianPtpMoveSkillId);
+                                                      UA_NODEID_NUMERIC(nsIdxRobFor, UA_FOR_ROBID_CARTESIANPTPMOVESKILLTYPE),
+                                                      &cartesianPtpMoveSkillId);
     if (!found) {
         if (!UA_NodeId_isNull(&cartesianPtpMoveSkillId)) {
             logger->error("There are multiple 'CartesianPtpMoveSkill' nodes on the server. This is currently not supported.");
@@ -319,10 +335,10 @@ UA_StatusCode RobotClient::initializeNodeIds() {
         }
         return UA_STATUSCODE_BADNOTFOUND;
     }
-    
+
     found = fortiss::opcua::UA_Client_findChildOfType(client.get(), logger, skillsId,
-                                                              UA_NODEID_NUMERIC(nsIdxRobFor, UA_FOR_ROBID_JOINTLINEARMOVESKILLTYPE),
-                                                              &jointLinearMoveSkillId);
+                                                      UA_NODEID_NUMERIC(nsIdxRobFor, UA_FOR_ROBID_JOINTLINEARMOVESKILLTYPE),
+                                                      &jointLinearMoveSkillId);
     if (!found) {
         if (!UA_NodeId_isNull(&jointLinearMoveSkillId)) {
             logger->error("There are multiple 'JointLinearMoveSkill' nodes on the server. This is currently not supported.");
@@ -331,10 +347,10 @@ UA_StatusCode RobotClient::initializeNodeIds() {
         }
         return UA_STATUSCODE_BADNOTFOUND;
     }
-    
+
     found = fortiss::opcua::UA_Client_findChildOfType(client.get(), logger, skillsId,
-                                                              UA_NODEID_NUMERIC(nsIdxRobFor, UA_FOR_ROBID_JOINTPTPMOVESKILLTYPE),
-                                                              &jointPtpMoveSkillId);
+                                                      UA_NODEID_NUMERIC(nsIdxRobFor, UA_FOR_ROBID_JOINTPTPMOVESKILLTYPE),
+                                                      &jointPtpMoveSkillId);
     if (!found) {
         if (!UA_NodeId_isNull(&jointPtpMoveSkillId)) {
             logger->error("There are multiple 'JointPtpMoveSkill' nodes on the server. This is currently not supported.");
@@ -395,15 +411,19 @@ void RobotClient::stop() {
 }
 
 UA_StatusCode
-RobotClient::setTool(const std::string &name, const UA_ThreeDFrame &frame, const double mass,
-                     const UA_ThreeDFrame &centerOfMass,
-                     const UA_ThreeDVector &inertia) {
+RobotClient::setTool(
+        const std::string& name,
+        const UA_ThreeDFrame& frame,
+        const double mass,
+        const UA_ThreeDFrame& centerOfMass,
+        const UA_ThreeDVector& inertia
+) {
     UA_Variant input[5];
 
     UA_Variant_init(&input[0]);
     UA_String nameStr;
     nameStr.length = name.length();
-    nameStr.data = (UA_Byte *) const_cast<char *>(name.c_str());
+    nameStr.data = (UA_Byte*) const_cast<char*>(name.c_str());
     UA_Variant_setScalar(&input[0], &nameStr, &UA_TYPES[UA_TYPES_STRING]);
 
 
@@ -416,16 +436,16 @@ RobotClient::setTool(const std::string &name, const UA_ThreeDFrame &frame, const
     extObjFrame.content.decoded.data = const_cast<UA_Frame*>(&frame);
 
     UA_Variant_setScalar(&input[1], &extObjFrame, &UA_TYPES[UA_TYPES_EXTENSIONOBJECT]);*/
-    UA_Variant_setScalar(&input[1], const_cast<UA_ThreeDFrame *>(&frame), &UA_TYPES[UA_TYPES_THREEDFRAME]);
+    UA_Variant_setScalar(&input[1], const_cast<UA_ThreeDFrame*>(&frame), &UA_TYPES[UA_TYPES_THREEDFRAME]);
 
     UA_Variant_init(&input[2]);
-    UA_Variant_setScalar(&input[2], const_cast<double *>(&mass), &UA_TYPES[UA_TYPES_DOUBLE]);
+    UA_Variant_setScalar(&input[2], const_cast<double*>(&mass), &UA_TYPES[UA_TYPES_DOUBLE]);
 
     UA_Variant_init(&input[3]);
-    UA_Variant_setScalar(&input[3], const_cast<UA_ThreeDFrame *>(&centerOfMass), &UA_TYPES[UA_TYPES_THREEDFRAME]);
+    UA_Variant_setScalar(&input[3], const_cast<UA_ThreeDFrame*>(&centerOfMass), &UA_TYPES[UA_TYPES_THREEDFRAME]);
 
     UA_Variant_init(&input[4]);
-    UA_Variant_setScalar(&input[4], const_cast<UA_ThreeDVector *>(&inertia), &UA_TYPES[UA_TYPES_THREEDVECTOR]);
+    UA_Variant_setScalar(&input[4], const_cast<UA_ThreeDVector*>(&inertia), &UA_TYPES[UA_TYPES_THREEDVECTOR]);
 
 
     std::lock_guard<std::mutex> lk(clientMutex);
@@ -467,7 +487,7 @@ std::string RobotClient::getMotionSystemDisplayName() {
     if (retval != UA_STATUSCODE_GOOD)
         return nullptr;
 
-    std::string retstr((char *) var.text.data, var.text.length);
+    std::string retstr((char*) var.text.data, var.text.length);
 
     UA_LocalizedText_clear(&var);
 

@@ -1,30 +1,46 @@
-//
-// Created by profanter on 21/05/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #include <common/client/robot/CartesianLinearMoveSkillClient.h>
 #include <common/opcua/helper.hpp>
 
-CartesianLinearMoveSkillClient::CartesianLinearMoveSkillClient(const std::shared_ptr<spdlog::logger> &loggerParam,
-                                                               const std::string &serverURL,
-                                                               UA_UInt16 nsIdxDi, UA_UInt16 nsIdxRobFor,
-                                                               const UA_NodeId &skillNodeId, unsigned short axisCount,
-                                                               const std::string &username,
-                                                               const std::string &password) :
-        SkillClient(loggerParam, serverURL, nsIdxDi, skillNodeId, username, password),
-        MoveSkillClient(loggerParam, serverURL, nsIdxDi, nsIdxRobFor, skillNodeId, username, password),
-        CartesianMoveSkillClient(loggerParam, serverURL, nsIdxDi, nsIdxRobFor, skillNodeId, axisCount, username,
-                                 password),
-        LinearMoveSkillClient(loggerParam, serverURL, nsIdxDi, nsIdxRobFor, skillNodeId, username, password) {
+CartesianLinearMoveSkillClient::CartesianLinearMoveSkillClient(
+        const std::shared_ptr<spdlog::logger>& loggerApp,
+        const std::shared_ptr<spdlog::logger>& loggerOpcua,
+        const std::string& serverURL,
+        UA_UInt16 nsIdxDi,
+        UA_UInt16 nsIdxRobFor,
+        const UA_NodeId& skillNodeId,
+        unsigned short axisCount,
+        const std::string& username,
+        const std::string& password,
+        const std::string& clientCertPath,
+        const std::string& clientKeyPath,
+        const std::string& clientAppUri,
+        const std::string& clientAppName
+) :
+        SkillClient(loggerApp, loggerOpcua, serverURL, nsIdxDi, skillNodeId, username, password, clientCertPath, clientKeyPath, clientAppUri, clientAppName),
+        MoveSkillClient(loggerApp, loggerOpcua, serverURL, nsIdxDi, nsIdxRobFor, skillNodeId, username, password, clientCertPath, clientKeyPath, clientAppUri,
+                        clientAppName),
+        CartesianMoveSkillClient(loggerApp, loggerOpcua, serverURL, nsIdxDi, nsIdxRobFor, skillNodeId, axisCount, username,
+                                 password, clientCertPath, clientKeyPath, clientAppUri, clientAppName),
+        LinearMoveSkillClient(loggerApp, loggerOpcua, serverURL, nsIdxDi, nsIdxRobFor, skillNodeId, username, password, clientCertPath, clientKeyPath,
+                              clientAppUri, clientAppName) {
 
 }
 
-std::future<void> CartesianLinearMoveSkillClient::move(const UA_ThreeDFrame &targetPosition,
-                                                       const std::string &toolFrame,
-                                                       const double maxVelocity[6],
-                                                       const double maxAcceleration[6],
-                                                       const UA_Range axisBounds[]) {
+std::future<void> CartesianLinearMoveSkillClient::move(
+        const UA_ThreeDFrame& targetPosition,
+        const std::string& toolFrame,
+        const double maxVelocity[6],
+        const double maxAcceleration[6],
+        const UA_Range axisBounds[]
+) {
     std::stringstream msg;
     msg << "Sending CartesianLinearMove: " << targetPosition.cartesianCoordinates.x << " "
         << targetPosition.cartesianCoordinates.y << " " << targetPosition.cartesianCoordinates.z << " "
@@ -32,6 +48,7 @@ std::future<void> CartesianLinearMoveSkillClient::move(const UA_ThreeDFrame &tar
         << targetPosition.orientation.c * RAD_TO_DEG;
     logger->info(msg.str());
     std::promise<void> promiseMoveFinished;
+    this->connect();
 
     // write the parameters
     UA_StatusCode retval;

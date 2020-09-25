@@ -1,7 +1,10 @@
-//
-// Created by profanter on 21/05/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOTICS_INTERPOLATOR_HPP
 #define ROBOTICS_INTERPOLATOR_HPP
@@ -21,7 +24,7 @@ namespace fortiss {
 
                 explicit Interpolator(const std::shared_ptr<rl::mdl::Dynamic> &kinematic):
                         kinematic(kinematic)
-                        /*maximumAcceleration(100 * ::rl::math::DEG2RAD),
+                        /*maximumAcceleration(100 * ::rl::math::constants::deg2rad),
                         maximumAccelerationPercentage(1),
                         maximumSpeedPercentage(1)*/ {
 

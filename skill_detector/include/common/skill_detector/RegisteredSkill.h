@@ -1,7 +1,10 @@
-//
-// Created by profanter on 05/09/2019.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOTICS_COMMON_REGISTEREDSKILL_H
 #define ROBOTICS_COMMON_REGISTEREDSKILL_H
@@ -57,7 +60,11 @@ public:
         return parentComponent;
     }
 
-    std::future<bool> execute(std::shared_ptr<spdlog::logger> &logger, const std::vector<std::shared_ptr<SkillParameter>>& parameters);
+    std::future<bool> execute(
+            std::shared_ptr<spdlog::logger>& loggerApp,
+            std::shared_ptr<spdlog::logger>& loggerOpcua,
+            const std::vector<std::shared_ptr<SkillParameter>>& parameters
+    );
 
     std::future<UA_StatusCode> getFinalResultData(std::shared_ptr<spdlog::logger>& logger, const UA_String& resultData, UA_Variant *data);
 };

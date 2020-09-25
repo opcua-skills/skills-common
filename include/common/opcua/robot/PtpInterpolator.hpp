@@ -1,7 +1,10 @@
-//
-// Created by profanter on 17/05/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOT_PTPINTERPOLATOR_HPP
 #define ROBOT_PTPINTERPOLATOR_HPP
@@ -79,13 +82,13 @@ namespace fortiss {
 
                         if (!getInterpolatedJointPosition(this->kinematic.get(), qi0, ti1, updateRate, &qi1, &qdi1)) {
                             std::cout << "ERROR: Speed limits exceeded in step " << i << " with "
-                                      << qi1.transpose() * rl::math::RAD2DEG << std::endl;
+                                      << qi1.transpose() * rl::math::constants::rad2deg << std::endl;
                             return false;
                         }
 
                         if (!this->kinematic->isValid(qi1)) {
                             std::cout << "ERROR: joint limits exceeded in step " << i << " with "
-                                      << qi1.transpose() * rl::math::RAD2DEG << std::endl;
+                                      << qi1.transpose() * rl::math::constants::rad2deg << std::endl;
                             return false;
                         }
 

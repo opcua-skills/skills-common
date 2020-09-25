@@ -1,7 +1,10 @@
-//
-// Created by profanter on 17/05/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOTICS_RLSKILLIMPL_HPP
 #define ROBOTICS_RLSKILLIMPL_HPP
@@ -40,6 +43,8 @@ namespace fortiss {
                 std::shared_ptr<spdlog::logger> logger;
                 std::shared_ptr<rl::mdl::Dynamic> kinematic;
                 std::function<const rl::math::Vector()> getJointPosition;
+                
+                bool targetAlreadyReached = false;
 
                 bool getInverseKinematics(const rl::math::Transform &x, rl::math::Vector &joints,
                                           const rl::math::Vector &lowerBounds = rl::math::Vector(),
@@ -61,7 +66,7 @@ namespace fortiss {
 
                     std::cout << "rotation after" << std::endl;
                     rl::math::Vector3 angles = x_robot.rotation().eulerAngles(2, 1, 2);
-                    std::cout << angles[0] * rl::math::RAD2DEG << " " << angles[1] * rl::math::RAD2DEG << " " << angles[2] * rl::math::RAD2DEG << std::endl;
+                    std::cout << angles[0] * rl::math::constants::rad2deg << " " << angles[1] * rl::math::constants::rad2deg << " " << angles[2] * rl::math::constants::rad2deg << std::endl;
                      */
                     //}
 

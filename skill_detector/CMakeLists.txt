@@ -14,7 +14,6 @@ target_include_directories(${PROJECT_NAME}-skill-detector PUBLIC
                            ../deps/spdlog/include
                            include
                            $<TARGET_PROPERTY:${PROJECT_NAME}-client,INTERFACE_INCLUDE_DIRECTORIES>
-                           $<TARGET_PROPERTY:open62541::open62541,INTERFACE_INCLUDE_DIRECTORIES>
                            $<TARGET_PROPERTY:rl::math,INTERFACE_INCLUDE_DIRECTORIES>)
 
 add_dependencies(${PROJECT_NAME}-skill-detector

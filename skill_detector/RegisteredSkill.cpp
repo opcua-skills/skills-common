@@ -1,7 +1,10 @@
-//
-// Created by profanter on 05/09/2019.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #include <open62541/client_highlevel.h>
 #include <open62541/types_generated_handling.h>
@@ -92,60 +95,74 @@ RegisteredSkill::~RegisteredSkill() {
     }
 }
 
-std::future<bool> RegisteredSkill::execute(std::shared_ptr<spdlog::logger>& logger, const std::vector<std::shared_ptr<SkillParameter>>& parameters) {
+std::future<bool> RegisteredSkill::execute(
+        std::shared_ptr<spdlog::logger>& loggerApp,
+        std::shared_ptr<spdlog::logger>& loggerOpcua,
+        const std::vector<std::shared_ptr<SkillParameter>>& parameters) {
 
     if (!skillClient) {
-        // copy logger to change loglevel
-        std::shared_ptr<spdlog::logger> loggerClient = logger->clone(logger->name()+"-client");
-        if (loggerClient->level() < spdlog::level::err)
-            loggerClient->set_level(spdlog::level::err);
-
         UA_Client *uaClient = fortiss::opcua::UA_Helper_getClientForEndpoint(
                 this->parentComponent->endpoint.get(),
-                loggerClient,
+                loggerOpcua,
                 clientCertPath,
                 clientKeyPath,
                 clientAppUri,
                 clientAppName
         );
 
-        skillClient = new GenericSkillClient(loggerClient, this->parentComponent->endpointUrl, this->skillNodeId, uaClient);
-        skillClient->runThreaded();
+        skillClient = new GenericSkillClient(loggerApp, loggerOpcua, this->parentComponent->endpointUrl, this->skillNodeId, uaClient, "", "", false);
     }
 
     std::promise<bool> promiseMoveFinished;
+    // ensure thread is running. If already running, this will do nothing
+    UA_StatusCode ret = skillClient->runThreaded();
+    if (ret != UA_STATUSCODE_GOOD && ret != UA_STATUSCODE_BADALREADYEXISTS) {
+        return fortiss::opcua::setPromiseErrorException<bool>(&promiseMoveFinished, ret);
+    }
+    // ensure client is connected. If already connected, this will do nothing
+    ret = skillClient->connect();
+    if (ret != UA_STATUSCODE_GOOD) {
+        return fortiss::opcua::setPromiseErrorException<bool>(&promiseMoveFinished, ret);
+    }
+
     for (const auto& p: parameters) {
         UA_StatusCode code = skillClient->setParameterValue(p->getBrowseName(), p->getValue());
         if (code != UA_STATUSCODE_GOOD) {
-            logger->error("Could not set parameter {}: {}", p->getBrowseName(), UA_StatusCode_name(code));
+            loggerApp->error("Could not set parameter {}: {}", p->getBrowseName(), UA_StatusCode_name(code));
+            skillClient->stopThreaded();
             return fortiss::opcua::setPromiseErrorException<bool>(&promiseMoveFinished, code);
         }
     }
 
     UA_StatusCode retval = skillClient->writeParameterSet();
     if (retval != UA_STATUSCODE_GOOD) {
-        logger->error("Could not write parameter set. {}", UA_StatusCode_name(retval));
+        loggerApp->error("Could not write parameter set. {}", UA_StatusCode_name(retval));
+        skillClient->stopThreaded();
         return fortiss::opcua::setPromiseErrorException<bool>(&promiseMoveFinished, retval);
     }
 
     skillClient->emptyReceivedStates();
     retval = skillClient->start();
     if (retval != UA_STATUSCODE_GOOD) {
-        logger->error("Could not call start. {}", UA_StatusCode_name(retval));
+        loggerApp->error("Could not call start. {}", UA_StatusCode_name(retval));
+        skillClient->stopThreaded();
         return fortiss::opcua::setPromiseErrorException<bool>(&promiseMoveFinished, retval);
     }
-    return std::async([this, logger]() {
+    return std::async([this, loggerApp]() {
         fortiss::opcua::ProgramStateNumber newState = skillClient->getNextState().get();
         if (newState != fortiss::opcua::ProgramStateNumber::RUNNING) {
-            logger->error("Did not change to expected Running state.");
+            loggerApp->error("Did not change to expected Running state.");
+            skillClient->stopThreaded();
             throw fortiss::opcua::StatusCodeException(UA_STATUSCODE_BADINVALIDSTATE);
         }
         newState = skillClient->getNextState().get();
         if (newState != fortiss::opcua::ProgramStateNumber::READY) {
-            logger->error("Did not change to expected READY state. Resetting skill and returning error.");
+            loggerApp->error("Did not change to expected READY state. Resetting skill and returning error.");
             skillClient->resetWait().wait();
+            skillClient->stopThreaded();
             return false;
         }
+        skillClient->stopThreaded();
         return true;
     });
 }
@@ -156,5 +173,5 @@ std::future<UA_StatusCode> RegisteredSkill::getFinalResultData(std::shared_ptr<s
         logger->error("Can not call getFinalResultData if skillClient is null. Call execute first");
         return fortiss::opcua::setPromiseErrorException<UA_StatusCode>(&promiseMoveFinished, UA_STATUSCODE_BADINVALIDSTATE);
     }
-    return skillClient->getFinalResultData(resultData, data);
+    return skillClient->getFinalResultData(resultData, data, true);
 }

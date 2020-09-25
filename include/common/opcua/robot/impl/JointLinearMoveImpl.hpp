@@ -1,7 +1,10 @@
-//
-// Created by profanter on 17/05/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOTICS_ROBOT_SKILLS_JOINTLINEARMOVEIMPL_HPP
 #define ROBOTICS_ROBOT_SKILLS_JOINTLINEARMOVEIMPL_HPP
@@ -60,7 +63,8 @@ namespace fortiss {
                            const std::string &toolFrame,
                            const std::array<double, 6> &maxVelocity,
                            const std::array<double, 6> &maxAcceleration) override {
-
+					std::lock_guard<std::mutex> l(stepMutex);
+					targetAlreadyReached = false;
                     if (interpolator != nullptr) {
                         logger->error("Interpolator is already initialized. This can not be...");
                         return false;
@@ -78,12 +82,19 @@ namespace fortiss {
                     }
                     logger->info(ss.str());
 
+					if (jointTargetReached(targetJointPosition)) {
+						logger->info("Position already reached. Not moving and returning skill success.");
+						targetAlreadyReached = true;
+						active = true;
+						return true;
+					}
+
                     ::rl::math::Vector3 maxPositionVelocity = ::rl::math::Vector3::Ones();
                     ::rl::math::Vector3 maxPositionAcceleration = ::rl::math::Vector3::Ones();
                     ::rl::math::Vector3 maxOrientationVelocity = ::rl::math::Vector3::Constant(
-                            100 * rl::math::DEG2RAD);
+                            100 * rl::math::constants::deg2rad);
                     ::rl::math::Vector3 maxOrientationAcceleration = ::rl::math::Vector3::Constant(
-                            100 * rl::math::DEG2RAD);
+                            100 * rl::math::constants::deg2rad);
 
                     if (*std::max_element(maxVelocity.begin(), maxVelocity.end()) > 0) {
                         for (size_t i = 0; i < 3; i++) {
@@ -130,11 +141,10 @@ namespace fortiss {
                 }
 
                 bool halt() override {
-                    stepMutex.lock();
+					std::lock_guard<std::mutex> l(stepMutex);
                     active = false;
                     delete interpolator;
                     interpolator = nullptr;
-                    stepMutex.unlock();
                     return true;
                 }
 
@@ -154,11 +164,17 @@ namespace fortiss {
                 }
 
                 void step(rl::mdl::Dynamic *kinematicRunner) override {
-                    stepMutex.lock();
+					std::lock_guard<std::mutex> l(stepMutex);
 
+					if (targetAlreadyReached) {
+						active = false;
+						this->moveFinished();
+						logger->info("Target already reached.");
+						return;
+					}
+					
                     // The interpolator could be null if the mutex was just released
                     if (!interpolator) {
-                        stepMutex.unlock();
                         return;
                     }
 
@@ -170,7 +186,6 @@ namespace fortiss {
                         logger->info("Move finished");
                         delete interpolator;
                         interpolator = nullptr;
-                        stepMutex.unlock();
                         return;
                     }
 
@@ -191,16 +206,14 @@ namespace fortiss {
                     if (!success) {
                         active = false;
                         std::stringstream ss;
-                        ss << qt.transpose() * rl::math::RAD2DEG;
+                        ss << qt.transpose() * rl::math::constants::rad2deg;
                         logger->error("Can not calculate next interpolation. Joint limits exceeded: {}", ss.str());
                         delete interpolator;
                         this->moveErrored();
-                        stepMutex.unlock();
                         return;
                     }
 
                     setJointPosition(qt);
-                    stepMutex.unlock();
                 }
 
                 bool isActive() override {

@@ -1,7 +1,10 @@
-//
-// Created by profanter on 14/05/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOTICS_COMMON_OPCUA_ROBOT_LINEARMOVESKILL_HPP
 #define ROBOTICS_COMMON_OPCUA_ROBOT_LINEARMOVESKILL_HPP
@@ -30,7 +33,10 @@ namespace fortiss {
 
                         ret = readParameter<std::array<double, 6>, double, 6>(
                                 maxAccelerationParameter,
-                                [this](const double &x, size_t idx) {
+                                [this](
+                                        const double& x,
+                                        size_t idx
+                                ) {
                                     maxAccelerationParameter.value[idx] = x;
                                 });
                         if (ret != UA_STATUSCODE_GOOD)
@@ -38,7 +44,10 @@ namespace fortiss {
 
                         ret = readParameter<std::array<double, 6>, double, 6>(
                                 maxVelocityParameter,
-                                [this](const double &x, size_t idx) {
+                                [this](
+                                        const double& x,
+                                        size_t idx
+                                ) {
                                     maxVelocityParameter.value[idx] = x;
                                 });
                         return ret;
@@ -46,21 +55,22 @@ namespace fortiss {
 
                 public:
 
-                    explicit LinearMoveSkill(UA_Server
-                                             *server,
-                                             std::shared_ptr<spdlog::logger> &logger,
-                                             const UA_NodeId &skillNodeId,
-                                             const std::string &eventSourceName) :
+                    explicit LinearMoveSkill(
+                            const std::shared_ptr<fortiss::opcua::OpcUaServer>& server,
+                            std::shared_ptr<spdlog::logger>& logger,
+                            const UA_NodeId& skillNodeId,
+                            const std::string& eventSourceName
+                    ) :
                             SkillBase(server, logger, skillNodeId, eventSourceName),
                             MoveSkill(server, logger, skillNodeId, eventSourceName),
-                            maxAccelerationParameter(&UA_TYPES[UA_TYPES_DOUBLE],"MaxAcceleration",
-                                               UA_Server_getObjectComponentId(server, *parameterSetNodeId,
-                                                                              UA_QUALIFIEDNAME(static_cast<UA_UInt16>(nsForRobIdx),
-                                                                                               const_cast<char *>("MaxAcceleration")))),
-                            maxVelocityParameter(&UA_TYPES[UA_TYPES_DOUBLE],"MaxVelocity",
-                                               UA_Server_getObjectComponentId(server, *parameterSetNodeId,
-                                                                              UA_QUALIFIEDNAME(static_cast<UA_UInt16>(nsForRobIdx),
-                                                                                               const_cast<char *>("MaxVelocity")))) {
+                            maxAccelerationParameter(&UA_TYPES[UA_TYPES_DOUBLE], "MaxAcceleration",
+                                                     UA_Server_getObjectComponentId(server, *parameterSetNodeId,
+                                                                                    UA_QUALIFIEDNAME(static_cast<UA_UInt16>(nsForRobIdx),
+                                                                                                     const_cast<char*>("MaxAcceleration")))),
+                            maxVelocityParameter(&UA_TYPES[UA_TYPES_DOUBLE], "MaxVelocity",
+                                                 UA_Server_getObjectComponentId(server, *parameterSetNodeId,
+                                                                                UA_QUALIFIEDNAME(static_cast<UA_UInt16>(nsForRobIdx),
+                                                                                                 const_cast<char*>("MaxVelocity")))) {
                     }
 
                 };

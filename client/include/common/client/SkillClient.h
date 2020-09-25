@@ -1,17 +1,20 @@
-//
-// Created by profanter on 12/20/18.
-// Copyright (c) 2018 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef PROJECT_EDOCLIENT_H
 #define PROJECT_EDOCLIENT_H
 
 #include <string>
 #include <future>
-#include <open62541/client_config.h>
 #include <memory>
 #include <queue>
 #include <spdlog/logger.h>
+#include <open62541/client.h>
 
 #include "common/opcua/ProgramState.hpp"
 #include "common/opcua/ProgramTransition.hpp"
@@ -21,7 +24,8 @@
 
 class SkillClient {
 public:
-    explicit SkillClient(std::shared_ptr<spdlog::logger> logger,
+    explicit SkillClient(std::shared_ptr<spdlog::logger> _loggerApp,
+                         std::shared_ptr<spdlog::logger> _loggerOpcua,
                          const std::string &serverURL,
                          UA_UInt16 nsIdxDi,
                          const UA_NodeId &skillNodeId,
@@ -29,6 +33,17 @@ public:
                          const std::string &password = "",
                          bool isParameterSetMandatory = true,
                          UA_Client *client = NULL);
+    explicit SkillClient(std::shared_ptr<spdlog::logger> _loggerApp,
+                         std::shared_ptr<spdlog::logger> _loggerOpcua,
+                         const std::string &serverURL,
+                         UA_UInt16 nsIdxDi,
+                         const UA_NodeId &skillNodeId,
+                         const std::string &username = "",
+                         const std::string &password = "",
+                         const std::string& clientCertPath = "",
+                         const std::string& clientKeyPath = "",
+                         const std::string& clientAppUri = "",
+                         const std::string& clientAppName = "");
 
 
     virtual ~SkillClient();
@@ -47,7 +62,7 @@ public:
     UA_StatusCode
     connect(bool addSubscription = true);
     UA_StatusCode disconnect();
-    void runThreaded();
+    UA_StatusCode runThreaded();
     void stopThreaded();
 
     const fortiss::opcua::ProgramStateNumber getCurrentState();
@@ -58,18 +73,18 @@ public:
     std::future<fortiss::opcua::ProgramStateNumber> getNextState();
     void emptyReceivedStates();
 
-    std::future<UA_StatusCode> getFinalResultData(const UA_String& resultData, UA_Variant *data);
+    std::future<UA_StatusCode> getFinalResultData(const UA_String& resultData, UA_Variant *data, bool disconnectAfter);
 
 protected:
     UA_Client *client;
-    std::mutex clientMutex;
+    std::recursive_mutex clientMutex;
     UA_UInt32 monId;
     UA_UInt32 subId;
 
     UA_NodeId *stateTransitionEventTypes = nullptr;
     size_t stateTransitionEventTypesCount = 0;
 
-    const UA_UInt16 nsIdxDi = 0;
+    UA_UInt16 nsIdxDi = 0;
 
     UA_NodeId skillNodeId;
 
@@ -88,6 +103,7 @@ protected:
     UA_NodeId finalResultDataNodeId = UA_NODEID_NULL;
 
     std::shared_ptr<spdlog::logger> logger;
+    std::shared_ptr<spdlog::logger> loggerOpcua;
 
     std::function<bool(const fortiss::opcua::ProgramStateNumber)> eventFoundCallback;
 
@@ -120,8 +136,9 @@ private:
     std::queue<fortiss::opcua::ProgramStateNumber> receivedStates;
     std::condition_variable receivedStateAvailable;
 
+    void initNodes(bool isParameterSetMandatory = true);
 
-    void addEventSubscription();
+    UA_StatusCode addEventSubscription();
     void removeEventSubscription();
 
     static bool getEventFilter(UA_EventFilter *filter);

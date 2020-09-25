@@ -21,8 +21,8 @@ if [[ "$CC" == *"clang"* ]]; then
 	echo -e "\n=== Running static code analysis (clang) ==="
 	mkdir -p build
 	cd build
-	scan-build-3.9 cmake -G "Unix Makefiles" ..
-	scan-build-3.9 -enable-checker security.FloatLoopCounter \
+	scan-build-9 cmake -G "Unix Makefiles" ..
+	scan-build-9 -enable-checker security.FloatLoopCounter \
 	  -enable-checker security.insecureAPI.UncheckedReturn \
 	  --status-bugs -v \
 	  make -j 8

@@ -1,33 +1,46 @@
-//
-// Created by breitkreuz on 10/07/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #include <common/opcua/helper.hpp>
 #include <common/client/robot/ForceSkillClient.h>
 
-ForceSkillClient::ForceSkillClient(const std::shared_ptr<spdlog::logger> &loggerParam,
-                                           const std::string &serverURL, UA_UInt16 nsIdxDi, UA_UInt16 nsIdxRobFor,
-                                           const UA_NodeId &skillNodeId, const std::string &username,
-                                           const std::string &password)
-        : SkillClient(loggerParam, serverURL, nsIdxDi, skillNodeId, username, password) {
+ForceSkillClient::ForceSkillClient(
+        const std::shared_ptr<spdlog::logger>& loggerApp,
+        const std::shared_ptr<spdlog::logger>& loggerOpcua,
+        const std::string& serverURL,
+        UA_UInt16 nsIdxDi,
+        UA_UInt16 nsIdxRobFor,
+        const UA_NodeId& skillNodeId,
+        const std::string& username,
+        const std::string& password,
+        const std::string& clientCertPath,
+        const std::string& clientKeyPath,
+        const std::string& clientAppUri,
+        const std::string& clientAppName
+)
+        : SkillClient(loggerApp, loggerOpcua, serverURL, nsIdxDi, skillNodeId, username, password, clientCertPath, clientKeyPath, clientAppUri, clientAppName) {
 
     initParameter(&maxForceParameter, "MaxForce", UA_QUALIFIEDNAME(nsIdxRobFor,
-                                                                               const_cast<char *>("MaxForce")));
+                                                                   const_cast<char*>("MaxForce")));
 
     UA_NodeId finalResultData;
     fortiss::opcua::UA_Client_findChildWithBrowseName(client, logger, skillNodeId,
-                                                      UA_QUALIFIEDNAME(0, const_cast<char *>("FinalResultData")),
+                                                      UA_QUALIFIEDNAME(0, const_cast<char*>("FinalResultData")),
                                                       &finalResultData);
 
     fortiss::opcua::UA_Client_findChildWithBrowseName(client, logger, finalResultData,
                                                       UA_QUALIFIEDNAME(static_cast<UA_UInt16>(nsIdxRobFor),
-                                                                       const_cast<char *>("ForcesExceeded")),
+                                                                       const_cast<char*>("ForcesExceeded")),
                                                       &forcesExceeded);
 
     fortiss::opcua::UA_Client_findChildWithBrowseName(client, logger, finalResultData,
                                                       UA_QUALIFIEDNAME(static_cast<UA_UInt16>(nsIdxRobFor),
-                                                                       const_cast<char *>("ForcesMax")),
+                                                                       const_cast<char*>("ForcesMax")),
                                                       &forcesMax);
 }
 
@@ -62,7 +75,7 @@ std::array<double, 3> ForceSkillClient::readForcesExceeded() {
     UA_ReadResponse resp;
 
     {
-        std::lock_guard<std::mutex> lk(clientMutex);
+        std::lock_guard<std::recursive_mutex> lk(clientMutex);
         resp = UA_Client_Service_read(client, req);
     }
 
@@ -70,9 +83,9 @@ std::array<double, 3> ForceSkillClient::readForcesExceeded() {
         throw std::runtime_error("Reading exceeded forces failed");
     }
 
-    std::array<double, 3> res({static_cast<UA_ThreeDVector *>(resp.results->value.data)->x,
-                               static_cast<UA_ThreeDVector *>(resp.results->value.data)->y,
-                               static_cast<UA_ThreeDVector *>(resp.results->value.data)->z});
+    std::array<double, 3> res({static_cast<UA_ThreeDVector*>(resp.results->value.data)->x,
+                               static_cast<UA_ThreeDVector*>(resp.results->value.data)->y,
+                               static_cast<UA_ThreeDVector*>(resp.results->value.data)->z});
 
     UA_ReadRequest_deleteMembers(&req);
     UA_ReadResponse_deleteMembers(&resp);
@@ -91,7 +104,7 @@ std::array<double, 3> ForceSkillClient::readForcesMax() {
     UA_ReadResponse resp;
 
     {
-        std::lock_guard<std::mutex> lk(clientMutex);
+        std::lock_guard<std::recursive_mutex> lk(clientMutex);
         resp = UA_Client_Service_read(client, req);
     }
 
@@ -99,9 +112,9 @@ std::array<double, 3> ForceSkillClient::readForcesMax() {
         throw std::runtime_error("Reading max forces failed");
     }
 
-    std::array<double, 3> res({static_cast<UA_ThreeDVector *>(resp.results->value.data)->x,
-                               static_cast<UA_ThreeDVector *>(resp.results->value.data)->y,
-                               static_cast<UA_ThreeDVector *>(resp.results->value.data)->z});
+    std::array<double, 3> res({static_cast<UA_ThreeDVector*>(resp.results->value.data)->x,
+                               static_cast<UA_ThreeDVector*>(resp.results->value.data)->y,
+                               static_cast<UA_ThreeDVector*>(resp.results->value.data)->z});
 
     UA_ReadRequest_deleteMembers(&req);
     UA_ReadResponse_deleteMembers(&resp);

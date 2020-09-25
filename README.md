@@ -1,6 +1,6 @@
 # common
 
-Common configuration and source files for all components
+Common configuration and source files for all components.
 
 **NOTE:**
 
@@ -9,21 +9,15 @@ We do currently not accept pull requests.
 
 ## Dependencies
 
-Install following Ubuntu packages
+A full list of dependencies which are required for building this repo should be taken from the corresponding docker image configuration:
 
-```bash
-sudo apt install libconfig++-dev
+[main.yml](.gihtub/workflows/main.yml)
 
-```
 
-Install open62541:
+To summarize, you will need the following packages:
 
-```bash
-./tools/install_open62541.sh master $HOME/install/open62541/
-```
+`libconfig++-dev`, open62541, cli11, and a current RoboticsLibrary version.
 
-Install CLI11:
+## Building the Docker image for CI
 
-```bash
-./tools/install_cli11.sh $HOME/install/cli11/
-```
+Check out the corresponding [ci/README.md](ci/README.md)

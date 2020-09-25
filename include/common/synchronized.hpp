@@ -1,7 +1,10 @@
-//
-// Created by profanter on 22/01/2020.
-// Copyright (c) 2020 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef FORTISS_COMMON_SYNCHRONIZED_HPP
 #define FORTISS_COMMON_SYNCHRONIZED_HPP

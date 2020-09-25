@@ -1,7 +1,10 @@
-//
-// Created by profanter on 12/20/18.
-// Copyright (c) 2018 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #include <string>
 #include <stdexcept>
@@ -19,7 +22,8 @@
 #include <open62541/util.h>
 
 
-SkillClient::SkillClient(std::shared_ptr<spdlog::logger> loggerParam,
+SkillClient::SkillClient(std::shared_ptr<spdlog::logger> _loggerApp,
+                         std::shared_ptr<spdlog::logger> _loggerOpcua,
                          const std::string &serverURL,
                          UA_UInt16 nsIdxDi,
                          const UA_NodeId &_skillNodeId,
@@ -27,16 +31,16 @@ SkillClient::SkillClient(std::shared_ptr<spdlog::logger> loggerParam,
                          const std::string &password,
                          bool isParameterSetMandatory,
                          UA_Client *clientParam) :
-        nsIdxDi(nsIdxDi), skillNodeId(), logger(std::move(loggerParam)), parameter(),serverURL(serverURL), receivedStatesMutex(), receivedStateAvailable(),
-        running(false), subId(0), monId(0), username(username), password(password) {
+        monId(0), subId(0), nsIdxDi(nsIdxDi), skillNodeId(), logger(std::move(_loggerApp)), loggerOpcua(std::move(_loggerOpcua)), parameter(),
+        serverURL(serverURL), username(username), password(password), receivedStatesMutex(), receivedStateAvailable(), running(false) {
 
     if (clientParam == NULL) {
         client = UA_Client_new();
 
-        UA_ClientConfig *clientConfig = UA_Client_getConfig(client);
+        UA_ClientConfig* clientConfig = UA_Client_getConfig(client);
         UA_ClientConfig_setDefault(clientConfig);
         clientConfig->logger.log = fortiss::log::opcua::UA_Log_Spdlog_log;
-        clientConfig->logger.context = logger.get();
+        clientConfig->logger.context = loggerOpcua.get();
         clientConfig->logger.clear = fortiss::log::opcua::UA_Log_Spdlog_clear;
     } else {
         client = clientParam;
@@ -44,6 +48,45 @@ SkillClient::SkillClient(std::shared_ptr<spdlog::logger> loggerParam,
 
     skillNodeId = UA_NODEID_NULL;
     UA_NodeId_copy(&_skillNodeId, &this->skillNodeId);
+    initNodes(isParameterSetMandatory);
+}
+
+SkillClient::SkillClient(std::shared_ptr<spdlog::logger> _loggerApp,
+                         std::shared_ptr<spdlog::logger> _loggerOpcua,
+                         const std::string &serverURL,
+                         UA_UInt16 nsIdxDi,
+                         const UA_NodeId &_skillNodeId,
+                         const std::string &username,
+                         const std::string &password,
+                         const std::string& clientCertPath,
+                         const std::string& clientKeyPath,
+                         const std::string& clientAppUri,
+                         const std::string& clientAppName) :
+        monId(0), subId(0), nsIdxDi(nsIdxDi), skillNodeId(), logger(std::move(_loggerApp)), loggerOpcua(std::move(_loggerOpcua)), parameter(),
+        serverURL(serverURL), username(username), password(password), receivedStatesMutex(), receivedStateAvailable(), running(false) {
+
+    UA_EndpointDescription* description = fortiss::opcua::getEndpointWithHighestSecurity(serverURL.c_str(), logger);
+
+    client = fortiss::opcua::UA_Helper_getClientForEndpoint(
+            description,
+            loggerOpcua,
+            clientCertPath,
+            clientKeyPath,
+            clientAppUri,
+            clientAppName,
+            username,
+            password
+    );
+    if (!client)
+        throw std::runtime_error("Cannot connect skill client");
+
+    UA_EndpointDescription_delete(description);
+    skillNodeId = UA_NODEID_NULL;
+    UA_NodeId_copy(&_skillNodeId, &this->skillNodeId);
+    initNodes();
+}
+
+void SkillClient::initNodes(bool isParameterSetMandatory) {
 
 
     if (connect(false) != UA_STATUSCODE_GOOD) {
@@ -152,6 +195,10 @@ SkillClient::SkillClient(std::shared_ptr<spdlog::logger> loggerParam,
 SkillClient::~SkillClient() {
     stopThreaded();
 
+    for (auto p: parameter) {
+        UA_Variant_clear(&p->value);
+        delete p;
+    }
     UA_Array_delete(stateTransitionEventTypes, stateTransitionEventTypesCount, &UA_TYPES[UA_TYPES_NODEID]);
     UA_Client_delete(client);
 }
@@ -267,7 +314,7 @@ bool SkillClient::getEventFilter(UA_EventFilter *filter) {
     return true;
 }
 
-void SkillClient::eventHandler(UA_UInt32 subId, UA_UInt32 monId, void *monContext, size_t nEventFields,
+void SkillClient::eventHandler(UA_UInt32 subIdParam, UA_UInt32 monIdParam, void *monContext, size_t nEventFields,
                                UA_Variant *eventFields) {
     if (nEventFields < 1)
         return;
@@ -289,7 +336,7 @@ void SkillClient::eventHandler(UA_UInt32 subId, UA_UInt32 monId, void *monContex
 
     if (!isValidEventType) {
         UA_String nodeIdStr = UA_STRING_NULL;
-        UA_NodeId_toString(eventType, &nodeIdStr);
+        UA_NodeId_print(eventType, &nodeIdStr);
         logger->warn("Ignoring event. It is not of type ProgramTransitionType, but {}", std::string((char *) nodeIdStr.data, (int) nodeIdStr.length));
         UA_String_deleteMembers(&nodeIdStr);
         return;
@@ -332,7 +379,7 @@ void SkillClient::handleTransitionEvent(const UA_DateTime *time,
                                         const UA_LocalizedText *toState,
                                         const UA_LocalizedText *transition) {
     UA_DateTimeStruct dt = UA_DateTime_toStruct(*time);
-    logger->warn("Received Transition: {} --- {} ---> {} at {:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}.{:03d}{:03d}",
+    logger->info("Received Transition: {} --- {} ---> {} at {:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}.{:03d}{:03d}",
                  std::string((char *) fromState->text.data, (int) fromState->text.length),
                  std::string((char *) transition->text.data, (int) transition->text.length),
                  std::string((char *) toState->text.data, (int) toState->text.length),
@@ -387,23 +434,29 @@ void SkillClient::handleTransitionEvent(const UA_DateTime *time,
 
 
 void SkillClient::eventHandlerCallback(UA_Client *client,
-                                       UA_UInt32 subId, void *subContext,
-                                       UA_UInt32 monId, void *monContext,
+                                       UA_UInt32 subIdParam, void *subContext,
+                                       UA_UInt32 monIdParam, void *monContext,
                                        size_t nEventFields, UA_Variant *eventFields) {
     if (!subContext)
         return;
     auto *self = static_cast<SkillClient *>(subContext);
 
-    self->eventHandler(subId, monId, monContext, nEventFields, eventFields);
+    self->eventHandler(subIdParam, monIdParam, monContext, nEventFields, eventFields);
 }
 
 bool SkillClient::step(UA_UInt16 timeout) {
-    if (UA_Client_getState(client) == UA_CLIENTSTATE_DISCONNECTED) {
+
+    UA_SecureChannelState channelState;
+    UA_SessionState sessionState;
+    UA_StatusCode connectStatus;
+    UA_Client_getState(client, &channelState, &sessionState, &connectStatus);
+
+    if (channelState == UA_SECURECHANNELSTATE_CLOSED || sessionState == UA_SESSIONSTATE_CLOSED) {
         return true;
     }
     UA_StatusCode retVal;
     {
-        std::lock_guard<std::mutex> lk(clientMutex);
+        std::lock_guard<std::recursive_mutex> lk(clientMutex);
         retVal = UA_Client_run_iterate(client, timeout);
     }
     if (retVal != UA_STATUSCODE_GOOD) {
@@ -414,45 +467,65 @@ bool SkillClient::step(UA_UInt16 timeout) {
 }
 
 UA_StatusCode SkillClient::connect(bool addSubscription) {
-    if (UA_Client_getState(client) >= UA_CLIENTSTATE_SESSION) {
+    std::lock_guard<std::recursive_mutex> lk(clientMutex);
+
+    UA_SecureChannelState channelState;
+    UA_SessionState sessionState;
+    UA_StatusCode connectStatus;
+    UA_Client_getState(client, &channelState, &sessionState, &connectStatus);
+    if (sessionState >= UA_SESSIONSTATE_ACTIVATED) {
         UA_Client_run_iterate(client, 5);
-        if (UA_Client_getState(client) >= UA_CLIENTSTATE_SESSION) {
+        UA_Client_getState(client, &channelState, &sessionState, &connectStatus);
+        if (sessionState >= UA_SESSIONSTATE_ACTIVATED) {
+
+            if (addSubscription && subId == 0 && monId == 0)
+                addEventSubscription();
+
             return UA_STATUSCODE_GOOD;
         }
     }
 
     UA_StatusCode retval;
-    if (username.empty()) {
-        if (!password.empty()) {
-            logger->warn("Password provided but no user. Attempting to connect without login...");
+
+    int tryCount = 0;
+    do {
+        if (username.empty()) {
+            if (!password.empty()) {
+                logger->warn("Password provided but no user. Attempting to connect without login...");
+            } else {
+                logger->info("Attempting to connect without login...");
+            }
+            retval = UA_Client_connect(client, serverURL.c_str());
         } else {
-            logger->info("Attempting to connect without login...");
+            logger->info("Attempting to connect with username: {}", username);
+            retval = UA_Client_connectUsername(client, serverURL.c_str(), username.c_str(), password.c_str());
         }
-        retval = UA_Client_connect(client, serverURL.c_str());
-    } else {
-        logger->info("Attempting to connect with username: {}", username);
-        retval = UA_Client_connect_username(client, serverURL.c_str(), username.c_str(), password.c_str());
-    }
+        if (retval == UA_STATUSCODE_BADCONNECTIONCLOSED) {
+            logger->warn("Connection attempt to {} failed. Retrying ...", serverURL.c_str());
+            // clean up any remaining connections and try again
+            UA_Client_disconnect(client);
+        }
+        tryCount++;
+    } while (tryCount < 2 && retval == UA_STATUSCODE_BADCONNECTIONCLOSED);
 
     if (retval != UA_STATUSCODE_GOOD) {
         logger->error("Can not connect to kb {}. Error {}", serverURL.c_str(), UA_StatusCode_name(retval));
         return retval;
     }
 
-    logger->info("Connected");
+    logger->info("Skill Client connected");
 
-    if (retval != UA_STATUSCODE_GOOD) {
-    }
     if (addSubscription)
-        addEventSubscription();
+        return addEventSubscription();
     return UA_STATUSCODE_GOOD;
 }
 
-void SkillClient::addEventSubscription() {
+UA_StatusCode SkillClient::addEventSubscription() {
 
     if (subId != 0 && monId != 0)
-        return;
+        return UA_STATUSCODE_BADALREADYEXISTS;
 
+    std::lock_guard<std::recursive_mutex> lk(clientMutex);
     /* Create a subscription */
     UA_CreateSubscriptionRequest subRequest = UA_CreateSubscriptionRequest_default();
     UA_CreateSubscriptionResponse subResponse = UA_Client_Subscriptions_create(client, subRequest,
@@ -492,24 +565,32 @@ void SkillClient::addEventSubscription() {
                                                  nullptr, &SkillClient::eventHandlerCallback, nullptr);
 
     if (result.statusCode != UA_STATUSCODE_GOOD) {
-        throw std::runtime_error("Failed to add MonitoredItem, status code " + std::string(UA_StatusCode_name(result.statusCode)));
+        logger->error("Failed to add MonitoredItem, status code {}", std::string(UA_StatusCode_name(result.statusCode)));
+        UA_StatusCode ret = result.statusCode;
+        UA_MonitoredItemCreateResult_deleteMembers(&result);
+        UA_Array_delete(filter.selectClauses, filter.selectClausesSize, &UA_TYPES[UA_TYPES_SIMPLEATTRIBUTEOPERAND]);
+        return ret;
     }
 
     monId = result.monitoredItemId;
 
     UA_MonitoredItemCreateResult_deleteMembers(&result);
     UA_Array_delete(filter.selectClauses, filter.selectClausesSize, &UA_TYPES[UA_TYPES_SIMPLEATTRIBUTEOPERAND]);
+    return UA_STATUSCODE_GOOD;
 }
 
 void SkillClient::removeEventSubscription() {
     if (subId == 0)
         return;
+    std::lock_guard<std::recursive_mutex> lk(clientMutex);
     UA_Client_Subscriptions_deleteSingle(client, subId);
     subId = 0;
     monId = 0;
 }
 
 UA_StatusCode SkillClient::disconnect() {
+    std::lock_guard<std::recursive_mutex> lk(clientMutex);
+    logger->info("Skill Client disconnected");
     return UA_Client_disconnect(client);
 }
 
@@ -522,14 +603,15 @@ void SkillClient::threadWorker() {
     running = false;
 }
 
-void SkillClient::runThreaded() {
+UA_StatusCode SkillClient::runThreaded() {
     if (running)
-        return;
-    this->connect();
-    this->addEventSubscription();
+        return UA_STATUSCODE_BADALREADYEXISTS;
+    UA_StatusCode ret = this->connect(true);
+    if (ret != UA_STATUSCODE_GOOD)
+        return ret;
     running = true;
     stepperThread = std::thread([&] { threadWorker(); });
-
+    return UA_STATUSCODE_GOOD;
 }
 
 void SkillClient::stopThreaded() {
@@ -542,27 +624,27 @@ void SkillClient::stopThreaded() {
 }
 
 UA_StatusCode SkillClient::start() {
-    std::lock_guard<std::mutex> lk(clientMutex);
+    std::lock_guard<std::recursive_mutex> lk(clientMutex);
     return UA_Client_call(client, skillNodeId, startMethodId, 0, nullptr, nullptr, nullptr);
 }
 
 UA_StatusCode SkillClient::reset() {
-    std::lock_guard<std::mutex> lk(clientMutex);
+    std::lock_guard<std::recursive_mutex> lk(clientMutex);
     return UA_Client_call(client, skillNodeId, resetMethodId, 0, nullptr, nullptr, nullptr);
 }
 
 UA_StatusCode SkillClient::suspend() {
-    std::lock_guard<std::mutex> lk(clientMutex);
+    std::lock_guard<std::recursive_mutex> lk(clientMutex);
     return UA_Client_call(client, skillNodeId, suspendMethodId, 0, nullptr, nullptr, nullptr);
 }
 
 UA_StatusCode SkillClient::resume() {
-    std::lock_guard<std::mutex> lk(clientMutex);
+    std::lock_guard<std::recursive_mutex> lk(clientMutex);
     return UA_Client_call(client, skillNodeId, resumeMethodId, 0, nullptr, nullptr, nullptr);
 }
 
 UA_StatusCode SkillClient::halt() {
-    std::lock_guard<std::mutex> lk(clientMutex);
+    std::lock_guard<std::recursive_mutex> lk(clientMutex);
     return UA_Client_call(client, skillNodeId, haltMethodId, 0, nullptr, nullptr, nullptr);
 }
 
@@ -580,7 +662,6 @@ SkillClient::resetWait() {
             logger->error("Did not change to expected Running state.");
             throw fortiss::opcua::StatusCodeException(UA_STATUSCODE_BADINVALIDSTATE);
         }
-        return;
     });
 }
 
@@ -594,7 +675,7 @@ UA_StatusCode SkillClient::readVariable(const UA_NodeId& node, UA_Variant* data)
     request.nodesToRead->attributeId = UA_ATTRIBUTEID_VALUE;
     UA_ReadResponse response;
     {
-        std::lock_guard<std::mutex> lk(clientMutex);
+        std::lock_guard<std::recursive_mutex> lk(clientMutex);
         response = UA_Client_Service_read(client, request);
     }
     UA_ReadRequest_clear(&request);
@@ -642,7 +723,7 @@ const fortiss::opcua::ProgramTransitionNumber SkillClient::getLastTransition() {
     request.nodesToRead->attributeId = UA_ATTRIBUTEID_VALUE;
     UA_ReadResponse response;
     {
-        std::lock_guard<std::mutex> lk(clientMutex);
+        std::lock_guard<std::recursive_mutex> lk(clientMutex);
         response = UA_Client_Service_read(client, request);
     }
     if (response.resultsSize != 1 || response.results->value.type != &UA_TYPES[UA_TYPES_UINT32]) {
@@ -716,10 +797,11 @@ UA_StatusCode SkillClient::writeParameter() {
         UA_Variant_copy(&param->value, &wReq.nodesToWrite[idx].value.value);
     }
 
+    logger->debug("Writing skill parameter");
 
     UA_WriteResponse wResp;
     {
-        std::lock_guard<std::mutex> lk(clientMutex);
+        std::lock_guard<std::recursive_mutex> lk(clientMutex);
         wResp = UA_Client_Service_write(client, wReq);
     }
 
@@ -739,6 +821,9 @@ UA_StatusCode SkillClient::writeParameter() {
             }
         }
     }
+    if (response == UA_STATUSCODE_GOOD) {
+        logger->debug("Writing skill parameter result: Success");
+    }
 
     UA_WriteRequest_deleteMembers(&wReq);
     UA_WriteResponse_deleteMembers(&wResp);
@@ -748,10 +833,13 @@ UA_StatusCode SkillClient::writeParameter() {
 bool SkillClient::initParameter(SkillClientParameter** param, const std::string &name, const UA_QualifiedName &browseName) {
 
     UA_NodeId *foundId = UA_NodeId_new();
-
-    bool found = fortiss::opcua::UA_Client_findChildWithBrowseName(client, logger, parameterSetNodeId,
-                                                                   browseName,
-                                                                   foundId);
+    bool found;
+    {
+        std::lock_guard<std::recursive_mutex> lk(clientMutex);
+        found = fortiss::opcua::UA_Client_findChildWithBrowseName(client, logger, parameterSetNodeId,
+                                                                       browseName,
+                                                                       foundId);
+    }
     if (!found) {
         UA_NodeId_delete(foundId);
         return false;
@@ -765,8 +853,8 @@ bool SkillClient::initParameter(SkillClientParameter** param, const std::string 
 }
 
 
-std::future<UA_StatusCode> SkillClient::getFinalResultData(const UA_String& resultData, UA_Variant *data) {
-    return std::async([this, resultData, data]() {
+std::future<UA_StatusCode> SkillClient::getFinalResultData(const UA_String& resultData, UA_Variant *data, bool disconnectAfter) {
+    return std::async([this, resultData, data, disconnectAfter]() {
 
         if (UA_NodeId_equal(&finalResultDataNodeId, &UA_NODEID_NULL))
             return UA_STATUSCODE_BADNODEIDINVALID;
@@ -775,10 +863,15 @@ std::future<UA_StatusCode> SkillClient::getFinalResultData(const UA_String& resu
         bool found;
 
         {
-            std::lock_guard<std::mutex> lk(clientMutex);
+            std::lock_guard<std::recursive_mutex> lk(clientMutex);
+            UA_StatusCode ret = this->connect(false);
+            if (ret != UA_STATUSCODE_GOOD)
+                return ret;
             found = fortiss::opcua::UA_Client_findChildWithName(client, logger, finalResultDataNodeId,
                                                                       resultData,
                                                                       &finalResultDataId);
+            if (disconnectAfter)
+                this->disconnect();
         }
 
         if (!found) {

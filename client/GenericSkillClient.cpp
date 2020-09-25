@@ -1,21 +1,30 @@
-//
-// Created by profanter on 24/09/2019.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #include <open62541/client.h>
 #include <common/opcua/helper.hpp>
 #include <common/client/GenericSkillClient.h>
 
-GenericSkillClient::GenericSkillClient(std::shared_ptr<spdlog::logger> &loggerParam, const std::string &serverURL,
-                                       const UA_NodeId &_skillNodeId, UA_Client *clientParam,
-                                       const std::string &username, const std::string &password) :
-        SkillClient(loggerParam, serverURL, 0, _skillNodeId, username, password, false, clientParam),
+GenericSkillClient::GenericSkillClient(
+        std::shared_ptr<spdlog::logger>& loggerApp,
+        std::shared_ptr<spdlog::logger>& loggerOpcua,
+        const std::string &serverURL,
+        const UA_NodeId &_skillNodeId,
+        UA_Client *clientParam,
+        const std::string &username,
+        const std::string &password,
+        bool disconnectAfterInit) :
+        SkillClient(loggerApp, loggerOpcua, serverURL, 0, _skillNodeId, username, password, false, clientParam),
         parameterMap() {
-    populateParametersMap();
+    populateParametersMap(disconnectAfterInit);
 }
 
-void GenericSkillClient::populateParametersMap() {
+void GenericSkillClient::populateParametersMap(bool disconnectAfterInit) {
 
     if (UA_NodeId_equal(&this->parameterSetNodeId,&UA_NODEID_NULL))
         return;
@@ -34,11 +43,14 @@ void GenericSkillClient::populateParametersMap() {
                       UA_StatusCode_name(retval));
         throw fortiss::opcua::StatusCodeException(retval);
     }
-    UA_BrowseResponse bResp = UA_Client_Service_browse(client, bReq);
+    UA_BrowseResponse bResp;
+    {
+        std::lock_guard<std::recursive_mutex> lk(clientMutex);
+        bResp = UA_Client_Service_browse(client, bReq);
+    }
 
     UA_NodeId hasComponentReferenceId = UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT);
 
-    bool found = false;
     if (bResp.responseHeader.serviceResult != UA_STATUSCODE_GOOD) {
         logger->error("Can not browse server for children. Error {}",
                       UA_StatusCode_name(bResp.responseHeader.serviceResult));
@@ -64,13 +76,15 @@ void GenericSkillClient::populateParametersMap() {
     UA_BrowseRequest_clear(&bReq);
     UA_BrowseResponse_clear(&bResp);
 
-    disconnect();
+    if (disconnectAfterInit)
+        disconnect();
 }
 
 UA_StatusCode GenericSkillClient::setParameterValue(const std::string& name, const UA_Variant& value) {
 
     if (parameterMap.count(name) == 0)
         return UA_STATUSCODE_BADNOTFOUND;
+    UA_Variant_clear(&parameterMap.at(name)->value);
     return UA_Variant_copy(&value, &parameterMap.at(name)->value);
 }
 

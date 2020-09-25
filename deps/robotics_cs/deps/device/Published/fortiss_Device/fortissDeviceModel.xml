@@ -76,7 +76,8 @@
 
   <!-- ### Object Types ###-->
 
-  <ObjectType SymbolicName="DEVICE:SkillType" BaseType="OpcUa:ProgramStateMachineType" IsAbstract="true">
+  <ObjectType SymbolicName="DEVICE:SkillType" BaseType="OpcUa:ProgramStateMachineType" IsAbstract="true"
+              SupportsEvents="true">
     <Description>A skill type</Description>
     <Children>
       <Property SymbolicName="DEVICE:Name" DataType="OpcUa:String" ValueRank="Scalar" ModellingRule="None">

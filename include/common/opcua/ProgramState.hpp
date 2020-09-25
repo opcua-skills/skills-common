@@ -1,6 +1,10 @@
-//
-// Created by breitkreuz on 22.11.18.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOTICS_COMMON_OPCUA_PROGRAMSTATE_H
 #define ROBOTICS_COMMON_OPCUA_PROGRAMSTATE_H
@@ -9,10 +13,13 @@
 #include <utility>
 #include <map>
 #include <memory>
+
 #ifdef UA_ENABLE_AMALGAMATION
 #include "open62541.h"
 #else
+
 #include <open62541/types.h>
+
 #endif
 
 namespace fortiss {
@@ -28,7 +35,7 @@ namespace fortiss {
         };
 
         const std::map<ProgramStateNumber, std::string> ProgramStateName = {
-                {ProgramStateNumber::INVALID,    "INVALID"},
+                {ProgramStateNumber::INVALID,   "INVALID"},
                 {ProgramStateNumber::HALTED,    "HALTED"},
                 {ProgramStateNumber::READY,     "READY"},
                 {ProgramStateNumber::RUNNING,   "RUNNING"},
@@ -39,14 +46,17 @@ namespace fortiss {
         public:
             ProgramState() = delete;
 
-            explicit ProgramState(const ProgramStateNumber number, std::shared_ptr<UA_NodeId> id,
-                                  const UA_LocalizedText name)
+            explicit ProgramState(
+                    const ProgramStateNumber number,
+                    std::shared_ptr<UA_NodeId> id,
+                    const UA_LocalizedText name
+            )
                     : number(number), id(std::move(id)), name(name) {
             };
 
             const UA_LocalizedText getName() const { return name; };
 
-            const UA_NodeId *getId() const { return id.get(); };
+            const UA_NodeId* getId() const { return id.get(); };
 
             const ProgramStateNumber getNumber() const { return number; };
 

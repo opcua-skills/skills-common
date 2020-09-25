@@ -1,7 +1,10 @@
-//
-// Created by profanter on 12/20/18.
-// Copyright (c) 2018 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #ifndef ROBOTICS_CS_CLIENT_ROBOTCLIENT_H
 #define ROBOTICS_CS_CLIENT_ROBOTCLIENT_H
@@ -20,7 +23,9 @@
 #include "CartesianLinearForceMoveSkillClient.h"
 
 class MoveAxisSkillClient;
+
 class MovePositionSkillClient;
+
 class MovePositionForceSkillClient;
 
 struct UA_Client;
@@ -28,29 +33,50 @@ typedef UA_Client UA_Client;
 
 class RobotClient {
 public:
-    explicit RobotClient(std::shared_ptr<spdlog::logger> logger, const std::string &serverURL,
-                         const std::string &username = "", const std::string &password = "");
+    explicit RobotClient(
+            std::shared_ptr<spdlog::logger> loggerApp,
+            std::shared_ptr<spdlog::logger> loggerOpcua,
+            const std::string& serverURL,
+            const std::string& username = "",
+            const std::string& password = "",
+            const std::string& clientCertPath = "",
+            const std::string& clientKeyPath = "",
+            const std::string& clientAppUri = "",
+            const std::string& clientAppName = ""
+    );
+
     virtual ~RobotClient();
 
-    CartesianLinearMoveSkillClient *cartesianLinearMoveSkillClient = nullptr;
-    CartesianPtpMoveSkillClient *cartesianPtpMoveSkillClient = nullptr;
-    JointLinearMoveSkillClient *jointLinearMoveSkillClient = nullptr;
-    JointPtpMoveSkillClient *jointPtpMoveSkillClient = nullptr;
-    CartesianLinearForceMoveSkillClient *cartesianLinearForceMoveSkillClient = nullptr;
+    CartesianLinearMoveSkillClient* cartesianLinearMoveSkillClient = nullptr;
+    CartesianPtpMoveSkillClient* cartesianPtpMoveSkillClient = nullptr;
+    JointLinearMoveSkillClient* jointLinearMoveSkillClient = nullptr;
+    JointPtpMoveSkillClient* jointPtpMoveSkillClient = nullptr;
+    CartesianLinearForceMoveSkillClient* cartesianLinearForceMoveSkillClient = nullptr;
 
     void start();
+
     void stop();
 
     size_t getAxesCount() { return axesCount; };
 
-    UA_StatusCode setTool(const std::string &name, const UA_ThreeDFrame &frame, const double mass, const UA_ThreeDFrame &centerOfMass, const UA_ThreeDVector &inertia);
+    UA_StatusCode setTool(
+            const std::string& name,
+            const UA_ThreeDFrame& frame,
+            const double mass,
+            const UA_ThreeDFrame& centerOfMass,
+            const UA_ThreeDVector& inertia
+    );
+
     UA_StatusCode setLed(bool on);
+
     UA_StatusCode clearTool();
 
     std::string getMotionSystemDisplayName();
+
 protected:
 
     std::shared_ptr<spdlog::logger> logger;
+    std::shared_ptr<spdlog::logger> loggerOpcua;
 
     std::shared_ptr<UA_Client> client;
     std::mutex clientMutex;
@@ -61,6 +87,10 @@ private:
     bool running = false;
 
     std::string serverURL;
+    std::string clientCertPath;
+    std::string clientKeyPath;
+    std::string clientAppUri;
+    std::string clientAppName;
 
     UA_UInt16 nsIdxDi = 0;
     UA_UInt16 nsIdxRob = 0;
@@ -85,7 +115,7 @@ private:
     UA_NodeId flangeToolClearMethodId = UA_NODEID_NULL;
     UA_NodeId flangeToolSetMethodId = UA_NODEID_NULL;
 
-    UA_NodeId *axesIds = nullptr;
+    UA_NodeId* axesIds = nullptr;
     size_t axesCount = 0;
 
     UA_StatusCode initializeNodeIds();

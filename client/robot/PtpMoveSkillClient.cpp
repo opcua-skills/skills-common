@@ -1,22 +1,37 @@
-//
-// Created by profanter on 21/05/19.
-// Copyright (c) 2019 fortiss GmbH. All rights reserved.
-//
+/*
+ * This file is subject to the terms and conditions defined in
+ * file 'LICENSE', which is part of this source code package.
+ *
+ *    Copyright (c) 2020 fortiss GmbH, Stefan Profanter
+ *    All rights reserved.
+ */
 
 #include <common/client/robot/PtpMoveSkillClient.h>
 
-PtpMoveSkillClient::PtpMoveSkillClient(const std::shared_ptr<spdlog::logger> &loggerParam, const std::string &serverURL,
-                                       UA_UInt16 nsIdxDi, UA_UInt16 nsIdxRobFor,
-                                       const UA_NodeId &skillNodeId, unsigned short axisCount,
-                                       const std::string &username, const std::string &password) :
-        MoveSkillClient(loggerParam, serverURL, nsIdxDi, nsIdxRobFor, skillNodeId, username, password),
-        SkillClient(loggerParam, serverURL, nsIdxDi, skillNodeId, username, password),
+PtpMoveSkillClient::PtpMoveSkillClient(
+        const std::shared_ptr<spdlog::logger>& loggerApp,
+        const std::shared_ptr<spdlog::logger>& loggerOpcua,
+        const std::string& serverURL,
+        UA_UInt16 nsIdxDi,
+        UA_UInt16 nsIdxRobFor,
+        const UA_NodeId& skillNodeId,
+        unsigned short axisCount,
+        const std::string& username,
+        const std::string& password,
+        const std::string& clientCertPath,
+        const std::string& clientKeyPath,
+        const std::string& clientAppUri,
+        const std::string& clientAppName
+) :
+        SkillClient(loggerApp, loggerOpcua, serverURL, nsIdxDi, skillNodeId, username, password, clientCertPath, clientKeyPath, clientAppUri, clientAppName),
+        MoveSkillClient(loggerApp, loggerOpcua, serverURL, nsIdxDi, nsIdxRobFor, skillNodeId, username, password, clientCertPath, clientKeyPath, clientAppUri,
+                        clientAppName),
         axisCount(axisCount) {
 
     initParameter(&maxVelocityParameter, "MaxVelocity", UA_QUALIFIEDNAME(nsIdxRobFor,
-                                                                         const_cast<char *>("MaxVelocity")));
+                                                                         const_cast<char*>("MaxVelocity")));
     initParameter(&maxAccelerationParameter, "MaxAcceleration", UA_QUALIFIEDNAME(nsIdxRobFor,
-                                                                                 const_cast<char *>("MaxAcceleration")));
+                                                                                 const_cast<char*>("MaxAcceleration")));
 }
 
 PtpMoveSkillClient::~PtpMoveSkillClient() {
@@ -42,7 +57,7 @@ PtpMoveSkillClient::setMaxAcceleration(const double maxAcceleration[]) {
 
 
     maxAccelerationParameter->value.arrayDimensionsSize = 1;
-    maxAccelerationParameter->value.arrayDimensions = (UA_UInt32 *)UA_Array_new(1, &UA_TYPES[UA_TYPES_UINT32]);
+    maxAccelerationParameter->value.arrayDimensions = (UA_UInt32*) UA_Array_new(1, &UA_TYPES[UA_TYPES_UINT32]);
     maxAccelerationParameter->value.arrayDimensions[0] = axisCount;
 
     if (retval != UA_STATUSCODE_GOOD) {
@@ -65,10 +80,10 @@ PtpMoveSkillClient::setMaxVelocity(const double maxVelocity[]) {
     if (!maxVelocity)
         return UA_STATUSCODE_GOOD;
     UA_StatusCode retval = UA_Variant_setArrayCopy(&maxVelocityParameter->value, maxVelocity, axisCount,
-                                                    &UA_TYPES[UA_TYPES_DOUBLE]);
+                                                   &UA_TYPES[UA_TYPES_DOUBLE]);
 
     maxVelocityParameter->value.arrayDimensionsSize = 1;
-    maxVelocityParameter->value.arrayDimensions = (UA_UInt32 *)UA_Array_new(1, &UA_TYPES[UA_TYPES_UINT32]);
+    maxVelocityParameter->value.arrayDimensions = (UA_UInt32*) UA_Array_new(1, &UA_TYPES[UA_TYPES_UINT32]);
     maxVelocityParameter->value.arrayDimensions[0] = axisCount;
 
     if (retval != UA_STATUSCODE_GOOD) {
